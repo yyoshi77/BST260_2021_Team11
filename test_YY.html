@@ -174,14 +174,6 @@ pre code {
 <div id="introductionbackgrounds" class="section level2">
 <h2>Introduction/Backgrounds</h2>
 <p>Intro and something here.</p>
-<pre class="r"><code>summary(cars)</code></pre>
-<pre><code>##      speed           dist       
-##  Min.   : 4.0   Min.   :  2.00  
-##  1st Qu.:12.0   1st Qu.: 26.00  
-##  Median :15.0   Median : 36.00  
-##  Mean   :15.4   Mean   : 42.98  
-##  3rd Qu.:19.0   3rd Qu.: 56.00  
-##  Max.   :25.0   Max.   :120.00</code></pre>
 </div>
 <div id="data-collection" class="section level2">
 <h2>Data collection</h2>
@@ -189,42 +181,79 @@ pre code {
 library(rvest)
 library(lubridate)</code></pre>
 <pre class="r"><code># URL of Men at Tokyo2020
-url_20men &lt;- &quot;https://www.watchathletics.com/page/2560/tokyo-olympics-men-s-marathon-results&quot;
+url_20m &lt;- &quot;https://www.watchathletics.com/page/2560/tokyo-olympics-men-s-marathon-results&quot;
 
 # Extract all tables in the page
-tab &lt;- read_html(url_20men) %&gt;% 
+tab &lt;- read_html(url_20m) %&gt;% 
   html_nodes(&quot;body&quot;) %&gt;% 
   html_nodes(&quot;table&quot;) 
-dat_20men &lt;- tab[1] %&gt;% 
+dat_20m &lt;- tab[1] %&gt;% 
   html_table() %&gt;%
   .[[1]] %&gt;% 
   slice(-1)
 
-colnames(dat_20men) &lt;- c(&quot;position&quot;, &quot;athlete&quot;, &quot;country&quot;, &quot;mark&quot;)
+colnames(dat_20m) &lt;- c(&quot;rank&quot;, &quot;athlete&quot;, &quot;country_ab&quot;, &quot;time&quot;)
 
 # Data reshaping
-dat_20men &lt;- dat_20men %&gt;% 
-  mutate(position = as.integer(position)) %&gt;% 
-  mutate(sb = ifelse(str_ends(mark, &quot; SB&quot;), 1, 0)) %&gt;% 
-  mutate(mark = str_replace(mark, &quot; SB&quot;, &quot;&quot;)) %&gt;% # SB means &#39;season best&#39;
-  mutate(dnf = ifelse(mark==&quot;DNF&quot;, 1, 0)) %&gt;% # DNF means &#39;did not finish&#39;
-  mutate(mark = hms(mark))
+dat_20m &lt;- dat_20m %&gt;% 
+  mutate(rank = as.integer(rank)) %&gt;% 
+  mutate(sb = ifelse(str_ends(time, &quot; SB&quot;), 1, 0)) %&gt;% # SB means &#39;season best&#39;
+  mutate(time = str_replace(time, &quot; SB&quot;, &quot;&quot;)) %&gt;% 
+  mutate(dnf = ifelse(time==&quot;DNF&quot;, 1, 0)) %&gt;% # DNF means &#39;did not finish&#39;
+  mutate(time = hms(time)) # change into date and time data
 
-dat_20men</code></pre>
+dat_20m</code></pre>
 <pre><code>## # A tibble: 106 × 6
-##    position athlete              country mark          sb   dnf
-##       &lt;int&gt; &lt;chr&gt;                &lt;chr&gt;   &lt;Period&gt;   &lt;dbl&gt; &lt;dbl&gt;
-##  1        1 Eliud KIPCHOGE       KEN     2H 8M 38S      0     0
-##  2        2 Abdi NAGEEYE         NED     2H 9M 58S      1     0
-##  3        3 Bashir ABDI          BEL     2H 10M 0S      1     0
-##  4        4 Lawrence CHERONO     KEN     2H 10M 2S      1     0
-##  5        5 Ayad LAMDASSEM       ESP     2H 10M 16S     1     0
-##  6        6 Suguru OSAKO         JPN     2H 10M 41S     1     0
-##  7        7 Alphonce Felix SIMBU TAN     2H 11M 35S     1     0
-##  8        8 Galen RUPP           USA     2H 11M 41S     1     0
-##  9        9 Othmane EL GOUMRI    MAR     2H 11M 58S     0     0
-## 10       10 Koen NAERT           BEL     2H 12M 13S     1     0
+##     rank athlete              country_ab time          sb   dnf
+##    &lt;int&gt; &lt;chr&gt;                &lt;chr&gt;      &lt;Period&gt;   &lt;dbl&gt; &lt;dbl&gt;
+##  1     1 Eliud KIPCHOGE       KEN        2H 8M 38S      0     0
+##  2     2 Abdi NAGEEYE         NED        2H 9M 58S      1     0
+##  3     3 Bashir ABDI          BEL        2H 10M 0S      1     0
+##  4     4 Lawrence CHERONO     KEN        2H 10M 2S      1     0
+##  5     5 Ayad LAMDASSEM       ESP        2H 10M 16S     1     0
+##  6     6 Suguru OSAKO         JPN        2H 10M 41S     1     0
+##  7     7 Alphonce Felix SIMBU TAN        2H 11M 35S     1     0
+##  8     8 Galen RUPP           USA        2H 11M 41S     1     0
+##  9     9 Othmane EL GOUMRI    MAR        2H 11M 58S     0     0
+## 10    10 Koen NAERT           BEL        2H 12M 13S     1     0
 ## # … with 96 more rows</code></pre>
+<pre class="r"><code># URL of Women at Tokyo2020
+url_20w &lt;- &quot;https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Women%27s_marathon&quot;
+
+# Extract all tables in the page
+tab &lt;- read_html(url_20w) %&gt;% 
+  html_nodes(&quot;table&quot;) 
+dat_20w &lt;- tab[8] %&gt;% 
+  html_table() %&gt;%
+  .[[1]] 
+
+colnames(dat_20w)[1:4] &lt;- c(&quot;rank&quot;, &quot;athlete&quot;, &quot;country&quot;, &quot;time&quot;)
+
+# Data reshaping
+dat_20w$rank[1:3] &lt;- c(1:3)
+dat_20w &lt;- dat_20w %&gt;% 
+  mutate(rank = ifelse(rank==&quot;–&quot;, NA, rank)) %&gt;% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %&gt;% 
+  mutate(sb = ifelse(Notes %in% c(&quot;SB&quot;,&quot;NR&quot;), 1, sb)) %&gt;% 
+  mutate(dnf = ifelse(time==&quot;DNF&quot;, 1, 0)) %&gt;% 
+  mutate(time = hms(time)) %&gt;% 
+  select(rank, athlete, country, time, sb, dnf)
+
+dat_20w</code></pre>
+<pre><code>## # A tibble: 88 × 6
+##    rank  athlete            country       time          sb   dnf
+##    &lt;chr&gt; &lt;chr&gt;              &lt;chr&gt;         &lt;Period&gt;   &lt;dbl&gt; &lt;dbl&gt;
+##  1 1     Peres Jepchirchir  Kenya         2H 27M 20S     1     0
+##  2 2     Brigid Kosgei      Kenya         2H 27M 36S     1     0
+##  3 3     Molly Seidel       United States 2H 27M 46S     1     0
+##  4 4     Roza Dereje        Ethiopia      2H 28M 38S     1     0
+##  5 5     Volha Mazuronak    Belarus       2H 29M 6S      1     0
+##  6 6     Melat Yisak Kejeta Germany       2H 29M 16S     1     0
+##  7 7     Eunice Chumba      Bahrain       2H 29M 36S     0     0
+##  8 8     Mao Ichiyama       Japan         2H 30M 13S     0     0
+##  9 9     Malindi Elmore     Canada        2H 30M 59S     1     0
+## 10 10    Sinead Diver       Australia     2H 31M 14S     1     0
+## # … with 78 more rows</code></pre>
 <p>Note that the <code>echo = FALSE</code> parameter was added to the code chunk to prevent printing of the R code that generated the plot.</p>
 </div>
 

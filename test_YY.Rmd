@@ -26,32 +26,52 @@ library(lubridate)
 
 ```{r, warning=FALSE}
 # URL of Men at Tokyo2020
-url_20men <- "https://www.watchathletics.com/page/2560/tokyo-olympics-men-s-marathon-results"
+url_20m <- "https://www.watchathletics.com/page/2560/tokyo-olympics-men-s-marathon-results"
 
 # Extract all tables in the page
-tab <- read_html(url_20men) %>% 
+tab <- read_html(url_20m) %>% 
   html_nodes("body") %>% 
   html_nodes("table") 
-dat_20men <- tab[1] %>% 
+dat_20m <- tab[1] %>% 
   html_table() %>%
   .[[1]] %>% 
   slice(-1)
 
-colnames(dat_20men) <- c("position", "athlete", "country", "mark")
+colnames(dat_20m) <- c("rank", "athlete", "country_ab", "time")
 
 # Data reshaping
-dat_20men <- dat_20men %>% 
-  mutate(position = as.integer(position)) %>% 
-  mutate(sb = ifelse(str_ends(mark, " SB"), 1, 0)) %>% # SB means 'season best'
-  mutate(mark = str_replace(mark, " SB", "")) %>% 
-  mutate(dnf = ifelse(mark=="DNF", 1, 0)) %>% # DNF means 'did not finish'
-  mutate(mark = hms(mark)) # change into date and time data
+dat_20m <- dat_20m %>% 
+  mutate(rank = as.integer(rank)) %>% 
+  mutate(sb = ifelse(str_ends(time, " SB"), 1, 0)) %>% # SB means 'season best'
+  mutate(time = str_replace(time, " SB", "")) %>% 
+  mutate(dnf = ifelse(time=="DNF", 1, 0)) %>% # DNF means 'did not finish'
+  mutate(time = hms(time)) # change into date and time data
 
-dat_20men
+dat_20m
 
+# URL of Women at Tokyo2020
+url_20w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Women%27s_marathon"
 
+# Extract all tables in the page
+tab <- read_html(url_20w) %>% 
+  html_nodes("table") 
+dat_20w <- tab[8] %>% 
+  html_table() %>%
+  .[[1]] 
 
+colnames(dat_20w)[1:4] <- c("rank", "athlete", "country", "time")
 
+# Data reshaping
+dat_20w$rank[1:3] <- c(1:3)
+dat_20w <- dat_20w %>% 
+  mutate(rank = ifelse(rank=="–", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR"), 1, sb)) %>% 
+  mutate(dnf = ifelse(time=="DNF", 1, 0)) %>% 
+  mutate(time = hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+dat_20w
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
