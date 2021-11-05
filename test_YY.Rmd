@@ -1,0 +1,58 @@
+---
+title: "Test_Scraping"
+author: "YYoshikawa, BST260 AY2021-22 Team #11"
+date: "11/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction/Backgrounds
+
+Intro and something here. 
+
+```{r cars}
+summary(cars)
+```
+
+## Data collection
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(rvest)
+library(lubridate)
+```
+
+```{r, warning=FALSE}
+# URL of Men at Tokyo2020
+url_20men <- "https://www.watchathletics.com/page/2560/tokyo-olympics-men-s-marathon-results"
+
+# Extract all tables in the page
+tab <- read_html(url_20men) %>% 
+  html_nodes("body") %>% 
+  html_nodes("table") 
+dat_20men <- tab[1] %>% 
+  html_table() %>%
+  .[[1]] %>% 
+  slice(-1)
+
+colnames(dat_20men) <- c("position", "athlete", "country", "mark")
+
+# Data reshaping
+dat_20men <- dat_20men %>% 
+  mutate(position = as.integer(position)) %>% 
+  mutate(sb = ifelse(str_ends(mark, " SB"), 1, 0)) %>% 
+  mutate(mark = str_replace(mark, " SB", "")) %>% # SB means 'season best'
+  mutate(dnf = ifelse(mark=="DNF", 1, 0)) %>% # DNF means 'did not finish'
+  mutate(mark = hms(mark))
+
+dat_20men
+
+
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
