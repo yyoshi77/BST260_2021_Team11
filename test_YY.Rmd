@@ -42,10 +42,10 @@ colnames(dat_20men) <- c("position", "athlete", "country", "mark")
 # Data reshaping
 dat_20men <- dat_20men %>% 
   mutate(position = as.integer(position)) %>% 
-  mutate(sb = ifelse(str_ends(mark, " SB"), 1, 0)) %>% 
-  mutate(mark = str_replace(mark, " SB", "")) %>% # SB means 'season best'
+  mutate(sb = ifelse(str_ends(mark, " SB"), 1, 0)) %>% # SB means 'season best'
+  mutate(mark = str_replace(mark, " SB", "")) %>% 
   mutate(dnf = ifelse(mark=="DNF", 1, 0)) %>% # DNF means 'did not finish'
-  mutate(mark = hms(mark))
+  mutate(mark = hms(mark)) # change into date and time data
 
 dat_20men
 
