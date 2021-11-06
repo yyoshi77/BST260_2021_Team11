@@ -133,7 +133,7 @@ dat_20w$dob <- dobs
 
 # Caluculate age at Tokyo 2020
 dat_20w <- dat_20w %>% 
-  mutate(age = eeptools::age_calc(dob, ymd("2021-08-08"), units = "years") %>% floor)
+  mutate(age = eeptools::age_calc(dob, ymd("2021-08-07"), units = "years") %>% floor)
 
 # Runner of the 1st-8th
 knitr::kable(dat_20w %>% slice(1:8))
