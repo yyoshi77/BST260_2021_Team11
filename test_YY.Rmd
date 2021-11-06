@@ -17,7 +17,6 @@ Intro and something here.
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(rvest)
-
 ```
 
 ```{r, warning=FALSE}
@@ -27,9 +26,8 @@ url_20m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_
 # Extract all tables in the page
 tab <- read_html(url_20m) %>% 
   html_nodes("table") 
-dat_20m <- tab[8] %>% 
-  html_table() %>%
-  .[[1]]
+dat_20m <- tab[[8]] %>% 
+  html_table() 
 
 colnames(dat_20m)[1:4] <- c("rank", "athlete", "country", "time")
 
@@ -43,8 +41,63 @@ dat_20m <- dat_20m %>%
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
 
+# Age data collection
+urls <- read_html(url_20m) %>% 
+  html_nodes("table") %>% 
+  .[[8]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text
+text_detect <- function(url){
+  read_html(url) %>% 
+    html_nodes("body") %>% 
+    .[[1]] %>% 
+    html_text()
+}
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection
+dob_detect <- function(string){
+  string %>% str_extract(
+  "(born \\d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December).\\d{4})|(born (January|February|March|April|May|June|July|August|September|October|November|December) \\d{1,2}. \\d{4})"
+  )
+}
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% lubridate::ymd()
+dobs
+
+dat_20m$dob <- dobs
+
+
 if (!require(knitr)) {install.packages("knitr", dependencies=TRUE)}
 knitr::kable(dat_20m %>% slice(1:8))
+
+
+##### test codes ####
+tab <- read_html(url_20m, encoding="UTF-8") %>% 
+  html_nodes("table") %>% 
+  .[[8]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_attr("href")
+tab <- tab[!str_detect(tab,"Olympics") & 
+             !str_detect(tab, "Bests") & 
+             !str_detect(tab, "conditions")]
+
+tab <- paste("https://en.wikipedia.org", tab, sep="")
+#####################
+
+
+
+
+
 
 # URL of Women at Tokyo2020
 url_20w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Women%27s_marathon"
@@ -52,9 +105,8 @@ url_20w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_
 # Extract all tables in the page
 tab <- read_html(url_20w) %>% 
   html_nodes("table") 
-dat_20w <- tab[8] %>% 
-  html_table() %>%
-  .[[1]] 
+dat_20w <- tab[[8]] %>% 
+  html_table()
 
 colnames(dat_20w)[1:4] <- c("rank", "athlete", "country", "time")
 
