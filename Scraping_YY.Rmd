@@ -117,8 +117,6 @@ urls <- read_html(url_20w) %>%
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
-urls
-
 
 # Extraction of Wiki text
 wiki_text <- sapply(urls, text_detect)
