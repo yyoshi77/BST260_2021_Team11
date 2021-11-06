@@ -1,7 +1,7 @@
 ---
-title: "Test_Scraping"
-author: "YYoshikawa, BST260 AY2021-22 Team #11"
-date: "11/5/2021"
+title: "Scraping of Marathon at Tokyo 2020"
+author: "YYoshikawa"
+date: "11/6/2021"
 output: html_document
 ---
 
@@ -17,9 +17,11 @@ Intro and something here.
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(rvest)
+library(lubridate)
 ```
 
 ```{r, warning=FALSE}
+#### Men at Tokyo 2020 ####
 # URL of Men at Tokyo2020
 url_20m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Men%27s_marathon"
 
@@ -47,7 +49,7 @@ urls <- read_html(url_20m) %>%
   .[[8]] %>% 
   html_nodes("a[href *= '/wiki/' ]") %>% 
   html_attr("href") %>% 
-  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions")] %>%
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
 
 # Extraction of Wiki text
@@ -71,35 +73,21 @@ dobs <- sapply(wiki_text, dob_detect) %>%
 dobs_d <- dobs %>% str_extract("\\d{1,2}")
 dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
 dobs_y <- dobs %>% str_extract("\\d{4}")
-dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% lubridate::ymd()
-dobs
-
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
 dat_20m$dob <- dobs
 
+# Caluculate age at Tokyo 2020
+if (!require(eeptools)) {install.packages("eeptools", dependencies=TRUE)}
+dat_20m <- dat_20m %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2021-08-08"), units = "years") %>% floor)
 
+# Runner of the 1st-8th
 if (!require(knitr)) {install.packages("knitr", dependencies=TRUE)}
 knitr::kable(dat_20m %>% slice(1:8))
 
 
-##### test codes ####
-tab <- read_html(url_20m, encoding="UTF-8") %>% 
-  html_nodes("table") %>% 
-  .[[8]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% 
-  html_attr("href")
-tab <- tab[!str_detect(tab,"Olympics") & 
-             !str_detect(tab, "Bests") & 
-             !str_detect(tab, "conditions")]
-
-tab <- paste("https://en.wikipedia.org", tab, sep="")
-#####################
-
-
-
-
-
-
-# URL of Women at Tokyo2020
+#### Women at Tokyo 2020 ####
+# URL of Women at Tokyo 2020
 url_20w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Women%27s_marathon"
 
 # Extract all tables in the page
@@ -120,6 +108,36 @@ dat_20w <- dat_20w %>%
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
 
+
+# Age data collection
+urls <- read_html(url_20w) %>% 
+  html_nodes("table") %>% 
+  .[[8]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+urls
+
+
+# Extraction of Wiki text
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dat_20w$dob <- dobs
+
+# Caluculate age at Tokyo 2020
+dat_20w <- dat_20w %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2021-08-08"), units = "years") %>% floor)
+
+# Runner of the 1st-8th
 knitr::kable(dat_20w %>% slice(1:8))
 
 ```
