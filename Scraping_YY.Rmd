@@ -28,18 +28,18 @@ url_20m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_
 # Extract all tables in the page
 tab <- read_html(url_20m) %>% 
   html_nodes("table") 
+# Table of interest
 dat_20m <- tab[[8]] %>% 
   html_table() 
 
-colnames(dat_20m)[1:4] <- c("rank", "athlete", "country", "time")
-
 # Data reshaping
+colnames(dat_20m)[1:4] <- c("rank", "athlete", "country", "time")
 dat_20m$rank[1:3] <- c(1:3)
 dat_20m <- dat_20m %>% 
   mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
   mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
-  mutate(sb = ifelse(Notes %in% c("SB","NR"), 1, sb)) %>% 
-  mutate(dnf = ifelse(Notes=="DNF", 1, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
 
@@ -76,7 +76,7 @@ dobs_y <- dobs %>% str_extract("\\d{4}")
 dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
 dat_20m$dob <- dobs
 
-# Caluculate age at Tokyo 2020
+# Calculate age at Tokyo 2020
 if (!require(eeptools)) {install.packages("eeptools", dependencies=TRUE)}
 dat_20m <- dat_20m %>% 
   mutate(age = eeptools::age_calc(dob, ymd("2021-08-08"), units = "years") %>% floor)
@@ -93,18 +93,18 @@ url_20w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_
 # Extract all tables in the page
 tab <- read_html(url_20w) %>% 
   html_nodes("table") 
+# Table of interest
 dat_20w <- tab[[8]] %>% 
   html_table()
 
-colnames(dat_20w)[1:4] <- c("rank", "athlete", "country", "time")
-
 # Data reshaping
+colnames(dat_20w)[1:4] <- c("rank", "athlete", "country", "time")
 dat_20w$rank[1:3] <- c(1:3)
 dat_20w <- dat_20w %>% 
   mutate(rank = ifelse(rank=="–", NA, rank)) %>% 
   mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
-  mutate(sb = ifelse(Notes %in% c("SB","NR"), 1, sb)) %>% 
-  mutate(dnf = ifelse(Notes=="DNF", 1, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
 
@@ -131,7 +131,7 @@ dobs_y <- dobs %>% str_extract("\\d{4}")
 dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
 dat_20w$dob <- dobs
 
-# Caluculate age at Tokyo 2020
+# Calculate age at Tokyo 2020
 dat_20w <- dat_20w %>% 
   mutate(age = eeptools::age_calc(dob, ymd("2021-08-07"), units = "years") %>% floor)
 
@@ -140,4 +140,53 @@ knitr::kable(dat_20w %>% slice(1:8))
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r, warning=FALSE}
+#### Men at Rio 2016 ####
+# URL of Men at Rio 2016
+url_16m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Men%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_16m) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_16m <- tab[[6]] %>% 
+  html_table() 
+
+# Data reshaping
+colnames(dat_16m)[1:4] <- c("rank", "athlete", "country", "time")
+dat_16m$rank[1:3] <- c(1:3)
+dat_16m <- dat_16m %>% 
+  mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = ifelse(dnf==1, NA, time)) %>% 
+  mutate(time = lubridate::hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+
+#### Men at Rio 2016 ####
+# URL of Men at Rio 2016
+url_16w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Women%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_16w) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_16w <- tab[[6]] %>% 
+  html_table() 
+
+# Data reshaping
+colnames(dat_16w)[1:4] <- c("rank", "athlete", "country", "time")
+dat_16w$rank[1:3] <- c(1:3)
+dat_16w <- dat_16w %>% 
+  mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = ifelse(dnf==1, NA, time)) %>% 
+  mutate(time = lubridate::hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+
+```
