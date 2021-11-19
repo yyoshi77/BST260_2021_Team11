@@ -165,8 +165,40 @@ dat_16m <- dat_16m %>%
   select(rank, athlete, country, time, sb, dnf)
 
 
-#### Men at Rio 2016 ####
-# URL of Men at Rio 2016
+# Age data collection
+urls <- read_html(url_16m) %>% 
+  html_nodes("table") %>% 
+  .[[6]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dat_16m$dob <- dobs
+
+# Calculate age at Rio 2016
+dat_16m <- dat_16m %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2016-08-21"), units = "years") %>% floor)
+
+# Runner of the 1st-8th
+knitr::kable(dat_16m %>% slice(1:8))
+
+
+
+
+#### Women at Rio 2016 ####
+# URL of Women at Rio 2016
 url_16w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Women%27s_marathon"
 
 # Extract all tables in the page
@@ -189,4 +221,38 @@ dat_16w <- dat_16w %>%
   select(rank, athlete, country, time, sb, dnf)
 
 
+# Age data collection
+urls <- read_html(url_16w) %>% 
+  html_nodes("table") %>% 
+  .[[6]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dat_16w$dob <- dobs
+
+# Calculate age at Rio 2016
+dat_16w <- dat_16w %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2016-08-14"), units = "years") %>% floor)
+
+# Runner of the 1st-8th
+knitr::kable(dat_16w %>% slice(1:8))
+
 ```
+
+
+```{r, warning=FALSE}
+```
+

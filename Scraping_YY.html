@@ -512,8 +512,132 @@ dat_16m &lt;- dat_16m %&gt;%
   select(rank, athlete, country, time, sb, dnf)
 
 
-#### Men at Rio 2016 ####
-# URL of Men at Rio 2016
+# Age data collection
+urls &lt;- read_html(url_16m) %&gt;% 
+  html_nodes(&quot;table&quot;) %&gt;% 
+  .[[6]] %&gt;% 
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% 
+  html_attr(&quot;href&quot;) %&gt;% 
+  .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
+  paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
+
+# Extraction of Wiki text
+wiki_text &lt;- sapply(urls, text_detect)
+
+# DOB detection
+dobs &lt;- sapply(wiki_text, dob_detect) %&gt;% 
+  as.character() %&gt;% 
+  str_replace(&quot;born &quot;, &quot;&quot;)
+dobs_d &lt;- dobs %&gt;% str_extract(&quot;\\d{1,2}&quot;)
+dobs_m &lt;- dobs %&gt;% str_extract(&quot;(January|February|March|April|May|June|July|August|September|October|November|December)&quot;)
+dobs_y &lt;- dobs %&gt;% str_extract(&quot;\\d{4}&quot;)
+dobs &lt;- paste(dobs_y, dobs_m, dobs_d, sep=&quot;-&quot;) %&gt;% ymd()
+dat_16m$dob &lt;- dobs
+
+# Calculate age at Rio 2016
+dat_16m &lt;- dat_16m %&gt;% 
+  mutate(age = eeptools::age_calc(dob, ymd(&quot;2016-08-21&quot;), units = &quot;years&quot;) %&gt;% floor)
+
+# Runner of the 1st-8th
+knitr::kable(dat_16m %&gt;% slice(1:8))</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">rank</th>
+<th align="left">athlete</th>
+<th align="left">country</th>
+<th align="right">time</th>
+<th align="right">sb</th>
+<th align="right">dnf</th>
+<th align="left">dob</th>
+<th align="right">age</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">1</td>
+<td align="left">Eliud Kipchoge</td>
+<td align="left">Kenya</td>
+<td align="right">2H 8M 44S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1984-11-05</td>
+<td align="right">31</td>
+</tr>
+<tr class="even">
+<td align="left">2</td>
+<td align="left">Feyisa Lilesa</td>
+<td align="left">Ethiopia</td>
+<td align="right">2H 9M 54S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1990-02-01</td>
+<td align="right">26</td>
+</tr>
+<tr class="odd">
+<td align="left">3</td>
+<td align="left">Galen Rupp</td>
+<td align="left">United States</td>
+<td align="right">2H 10M 5S</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1986-05-08</td>
+<td align="right">30</td>
+</tr>
+<tr class="even">
+<td align="left">4</td>
+<td align="left">Ghirmay Ghebreslassie</td>
+<td align="left">Eritrea</td>
+<td align="right">2H 11M 4S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1995-11-14</td>
+<td align="right">20</td>
+</tr>
+<tr class="odd">
+<td align="left">5</td>
+<td align="left">Alphonce Simbu</td>
+<td align="left">Tanzania</td>
+<td align="right">2H 11M 15S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1992-02-14</td>
+<td align="right">24</td>
+</tr>
+<tr class="even">
+<td align="left">6</td>
+<td align="left">Jared Ward</td>
+<td align="left">United States</td>
+<td align="right">2H 11M 30S</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1988-09-09</td>
+<td align="right">27</td>
+</tr>
+<tr class="odd">
+<td align="left">7</td>
+<td align="left">Tadesse Abraham</td>
+<td align="left">Switzerland</td>
+<td align="right">2H 11M 42S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1982-08-12</td>
+<td align="right">34</td>
+</tr>
+<tr class="even">
+<td align="left">8</td>
+<td align="left">Munyo Mutai</td>
+<td align="left">Uganda</td>
+<td align="right">2H 11M 49S</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1992-10-22</td>
+<td align="right">23</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>#### Women at Rio 2016 ####
+# URL of Women at Rio 2016
 url_16w &lt;- &quot;https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Women%27s_marathon&quot;
 
 # Extract all tables in the page
@@ -533,7 +657,133 @@ dat_16w &lt;- dat_16w %&gt;%
   mutate(dnf = ifelse(Notes %in% c(&quot;DNF&quot;,&quot;DNS&quot;,&quot;DSQ&quot;), 1, 0)) %&gt;% 
   mutate(time = ifelse(dnf==1, NA, time)) %&gt;% 
   mutate(time = lubridate::hms(time)) %&gt;% 
-  select(rank, athlete, country, time, sb, dnf)</code></pre>
+  select(rank, athlete, country, time, sb, dnf)
+
+
+# Age data collection
+urls &lt;- read_html(url_16w) %&gt;% 
+  html_nodes(&quot;table&quot;) %&gt;% 
+  .[[6]] %&gt;% 
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% 
+  html_attr(&quot;href&quot;) %&gt;% 
+  .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
+  paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
+
+# Extraction of Wiki text
+wiki_text &lt;- sapply(urls, text_detect)
+
+# DOB detection
+dobs &lt;- sapply(wiki_text, dob_detect) %&gt;% 
+  as.character() %&gt;% 
+  str_replace(&quot;born &quot;, &quot;&quot;)
+dobs_d &lt;- dobs %&gt;% str_extract(&quot;\\d{1,2}&quot;)
+dobs_m &lt;- dobs %&gt;% str_extract(&quot;(January|February|March|April|May|June|July|August|September|October|November|December)&quot;)
+dobs_y &lt;- dobs %&gt;% str_extract(&quot;\\d{4}&quot;)
+dobs &lt;- paste(dobs_y, dobs_m, dobs_d, sep=&quot;-&quot;) %&gt;% ymd()
+dat_16w$dob &lt;- dobs
+
+# Calculate age at Rio 2016
+dat_16w &lt;- dat_16w %&gt;% 
+  mutate(age = eeptools::age_calc(dob, ymd(&quot;2016-08-14&quot;), units = &quot;years&quot;) %&gt;% floor)
+
+# Runner of the 1st-8th
+knitr::kable(dat_16w %&gt;% slice(1:8))</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">rank</th>
+<th align="left">athlete</th>
+<th align="left">country</th>
+<th align="right">time</th>
+<th align="right">sb</th>
+<th align="right">dnf</th>
+<th align="left">dob</th>
+<th align="right">age</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">1</td>
+<td align="left">Jemima Sumgong</td>
+<td align="left">Kenya</td>
+<td align="right">2H 24M 4S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1984-12-21</td>
+<td align="right">31</td>
+</tr>
+<tr class="even">
+<td align="left">2</td>
+<td align="left">Eunice Kirwa</td>
+<td align="left">Bahrain</td>
+<td align="right">2H 24M 13S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1984-05-20</td>
+<td align="right">32</td>
+</tr>
+<tr class="odd">
+<td align="left">3</td>
+<td align="left">Mare Dibaba</td>
+<td align="left">Ethiopia</td>
+<td align="right">2H 24M 30S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1989-10-20</td>
+<td align="right">26</td>
+</tr>
+<tr class="even">
+<td align="left">4</td>
+<td align="left">Tirfi Tsegaye</td>
+<td align="left">Ethiopia</td>
+<td align="right">2H 24M 47S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1984-11-25</td>
+<td align="right">31</td>
+</tr>
+<tr class="odd">
+<td align="left">5</td>
+<td align="left">Volha Mazuronak</td>
+<td align="left">Belarus</td>
+<td align="right">2H 24M 48S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1989-04-14</td>
+<td align="right">27</td>
+</tr>
+<tr class="even">
+<td align="left">6</td>
+<td align="left">Shalane Flanagan</td>
+<td align="left">United States</td>
+<td align="right">2H 25M 26S</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1981-07-08</td>
+<td align="right">35</td>
+</tr>
+<tr class="odd">
+<td align="left">7</td>
+<td align="left">Desiree Linden</td>
+<td align="left">United States</td>
+<td align="right">2H 26M 8S</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1983-07-26</td>
+<td align="right">33</td>
+</tr>
+<tr class="even">
+<td align="left">8</td>
+<td align="left">Rose Chelimo</td>
+<td align="left">Bahrain</td>
+<td align="right">2H 27M 36S</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1989-07-12</td>
+<td align="right">27</td>
+</tr>
+</tbody>
+</table>
 </div>
 
 
