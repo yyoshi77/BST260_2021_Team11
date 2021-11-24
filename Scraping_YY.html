@@ -11,7 +11,6 @@
 
 <meta name="author" content="BST 260 Team 11" />
 
-<meta name="date" content="2021-11-24" />
 
 <title>Association between COVID-19 and Marathon Records</title>
 
@@ -167,7 +166,7 @@ pre code {
 
 <h1 class="title toc-ignore">Association between COVID-19 and Marathon Records</h1>
 <h4 class="author">BST 260 Team 11</h4>
-<h4 class="date">11/24/2021</h4>
+<h4 class="date">as of 11/24/2021</h4>
 
 </div>
 
@@ -183,9 +182,8 @@ library(tidyverse)
 library(rvest)
 library(lubridate)
 if (!require(RCurl)) {install.packages(&quot;RCurl&quot;, dependencies=TRUE)}
-library(RCurl)
-
-#### Men at Tokyo 2020 ####
+library(RCurl)</code></pre>
+<pre class="r"><code>#### Men at Tokyo 2020 ####
 # URL of Men at Tokyo2020
 url_20m &lt;- &quot;https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Men%27s_marathon&quot;
 
@@ -211,12 +209,12 @@ dat_20m &lt;- dat_20m %&gt;%
 urls &lt;- read_html(url_20m) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[8]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% 
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athlete&#39;s wiki
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
 
-# Extraction of Wiki text
+# Extraction of Wiki text function
 text_detect &lt;- function(url){
   read_html(url) %&gt;% 
     html_nodes(&quot;body&quot;) %&gt;% 
@@ -225,7 +223,7 @@ text_detect &lt;- function(url){
 }
 wiki_text &lt;- sapply(urls, text_detect)
 
-# DOB detection
+# DOB detection by string processing
 dob_detect &lt;- function(string){
   string %&gt;% str_extract(
   &quot;(born \\d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December).\\d{4})|(born (January|February|March|April|May|June|July|August|September|October|November|December) \\d{1,2}. \\d{4})&quot;
@@ -275,15 +273,15 @@ dat_20w &lt;- dat_20w %&gt;%
 urls &lt;- read_html(url_20w) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[8]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% 
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athlete&#39;s wiki
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
 
-# Extraction of Wiki text
+# Extraction of Wiki text by the function above
 wiki_text &lt;- sapply(urls, text_detect)
 
-# DOB detection
+# DOB detection by string processing
 dobs &lt;- sapply(wiki_text, dob_detect) %&gt;% 
   as.character() %&gt;% 
   str_replace(&quot;born &quot;, &quot;&quot;)
@@ -336,7 +334,7 @@ urls &lt;- read_html(url_16m) %&gt;%
 # Extraction of Wiki text
 wiki_text &lt;- sapply(urls, text_detect)
 
-# DOB detection
+# DOB detection by string processing
 dobs &lt;- sapply(wiki_text, dob_detect) %&gt;% 
   as.character() %&gt;% 
   str_replace(&quot;born &quot;, &quot;&quot;)
@@ -389,7 +387,7 @@ urls &lt;- read_html(url_16w) %&gt;%
 # Extraction of Wiki text
 wiki_text &lt;- sapply(urls, text_detect)
 
-# DOB detection
+# DOB detection by string processing
 dobs &lt;- sapply(wiki_text, dob_detect) %&gt;% 
   as.character() %&gt;% 
   str_replace(&quot;born &quot;, &quot;&quot;)
@@ -420,8 +418,8 @@ dat &lt;- dat %&gt;%
 non_lockdown &lt;- c(&quot;Burundi&quot;, &quot;Iceland&quot;, &quot;Japan&quot;, &quot;Nicaragua&quot;,
                   &quot;South Korea&quot;, &quot;Sweden&quot;, &quot;Taiwan&quot;, &quot;Tanzania&quot;, &quot;Uruguay&quot;)
 dat &lt;- dat %&gt;% 
-  mutate(lockdown = ifelse(country %in% non_lockdown, 0, 1))
-#### Prior attendance at Tokyo ####
+  mutate(lockdown = ifelse(country %in% non_lockdown, 0, 1))</code></pre>
+<pre class="r"><code>#### Prior attendance at Tokyo ####
 prior_attend &lt;- dat %&gt;% 
   group_by(athlete) %&gt;% 
   filter(n()&gt;1) %&gt;% 
@@ -440,13 +438,14 @@ jhu &lt;- read_csv(url) %&gt;%
   summarise(case_total = sum(`7/22/21`), .groups=&quot;drop&quot;) %&gt;% 
   rename(country = `Country/Region2`) %&gt;% 
   dplyr::select(country, case_total)</code></pre>
-<pre class="r"><code>#### Population ####
+<pre class="r"><code>#### Population/GDP ####
+
 # Read in Johns Hopkins UID lookup table
 # Source: https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv
 url &lt;- &quot;https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv&quot;
 pop &lt;- read_csv(url)
 
-#### GDP data ####
+# GDP data #
 # Read in GDP data on WORLD BANK
 # Source: https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv
 url &lt;- &quot;https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv&quot;
@@ -492,17 +491,17 @@ tab &lt;- read_html(url) %&gt;%
 africa &lt;- tab[[1]] %&gt;% 
   html_table() %&gt;% 
   .[,c(1,3)]
-africa &lt;- paste0(africa[,1], africa[,2], &quot;South Sudan&quot;)
+africa &lt;- paste0(africa[,1], africa[,2], &quot;South Sudan&quot;) # add discrepant country name
 # Asia
 asia &lt;- tab[[2]] %&gt;% 
   html_table() %&gt;% 
   .[,c(1,3)]
-asia &lt;- paste0(asia[,1], asia[,2], &quot;Taiwan&quot;)
+asia &lt;- paste0(asia[,1], asia[,2], &quot;Taiwan&quot;) # add discrepant country name
 # Europe
 europe &lt;- tab[[3]] %&gt;% 
   html_table() %&gt;% 
   .[,c(1,3)]
-europe &lt;- paste0(europe[,1], europe[,2], &quot;Great Britain&quot;)
+europe &lt;- paste0(europe[,1], europe[,2], &quot;Great Britain&quot;) # add discrepant country name
 # North America
 n_america &lt;- tab[[4]] %&gt;% 
   html_table() %&gt;% 
@@ -521,7 +520,7 @@ oceania &lt;- paste0(oceania[,1], oceania[,2])
 
 dat &lt;- dat %&gt;% 
   mutate(continent = case_when(str_detect(africa, country) ~ &quot;Africa&quot;,
-                               country==&quot;Congo (Kinshasa)&quot; ~ &quot;Africa&quot;,
+                               country==&quot;Congo (Kinshasa)&quot; ~ &quot;Africa&quot;, # add discrepant country name
                                str_detect(asia, country) ~ &quot;Asia&quot;,
                                str_detect(europe, country) ~ &quot;Europe&quot;,
                                str_detect(n_america, country) ~ &quot;North America&quot;,
@@ -550,15 +549,15 @@ dat</code></pre>
 <li><code>athlete</code>: athlete names</li>
 <li><code>country</code>: country from which the althlete is</li>
 <li><code>time</code>: records at each Olympic game</li>
-<li><code>sb</code>: season best of the athlete</li>
+<li><code>sb</code>: season best of the athlete; including national record and personal pest</li>
 <li><code>dnf</code>: did not finish; including did not start and disqualified</li>
 <li><code>dob</code>: date of birth</li>
 <li><code>age</code>: age (years) at the time of each Olympic game</li>
 <li><code>sex</code>: sex category</li>
 <li><code>olympic</code>: Olympic game name</li>
 <li><code>case_pp</code>: total case of the athlete country as of July 22, 2021</li>
-<li><code>gdp2019</code>: GDP in 2019 (less missing values)</li>
-<li><code>gdp2020</code>: GDP in 2020 (latest)</li>
+<li><code>gdp2019</code>: GDP in 2019 (less missing values); choose either gdp2019 or gdp2020</li>
+<li><code>gdp2020</code>: GDP in 2020 (latest); choose either gdp2019 or gdp2020</li>
 <li><code>continent</code>: continent from which the athlete is</li>
 <li><code>lockdown</code>: yes if the country from which the athletes is implemented lockdown</li>
 <li><code>prior_attend</code>: prior attendance of Tokyo 2020 athletes at Rio 2016 (athletes at Rio 2016 are all “no”)</li>

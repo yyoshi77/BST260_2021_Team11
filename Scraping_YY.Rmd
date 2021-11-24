@@ -1,7 +1,7 @@
 ---
 title: "Association between COVID-19 and Marathon Records"
 author: "BST 260 Team 11"
-date: "11/24/2021"
+date: "as of 11/24/2021"
 output: html_document
 ---
 
@@ -18,7 +18,9 @@ library(rvest)
 library(lubridate)
 if (!require(RCurl)) {install.packages("RCurl", dependencies=TRUE)}
 library(RCurl)
+```
 
+```{r, message=FALSE, warning=FALSE}
 #### Men at Tokyo 2020 ####
 # URL of Men at Tokyo2020
 url_20m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Men%27s_marathon"
@@ -45,12 +47,12 @@ dat_20m <- dat_20m %>%
 urls <- read_html(url_20m) %>% 
   html_nodes("table") %>% 
   .[[8]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athlete's wiki
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
 
-# Extraction of Wiki text
+# Extraction of Wiki text function
 text_detect <- function(url){
   read_html(url) %>% 
     html_nodes("body") %>% 
@@ -59,7 +61,7 @@ text_detect <- function(url){
 }
 wiki_text <- sapply(urls, text_detect)
 
-# DOB detection
+# DOB detection by string processing
 dob_detect <- function(string){
   string %>% str_extract(
   "(born \\d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December).\\d{4})|(born (January|February|March|April|May|June|July|August|September|October|November|December) \\d{1,2}. \\d{4})"
@@ -113,15 +115,15 @@ dat_20w <- dat_20w %>%
 urls <- read_html(url_20w) %>% 
   html_nodes("table") %>% 
   .[[8]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athlete's wiki
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
 
-# Extraction of Wiki text
+# Extraction of Wiki text by the function above
 wiki_text <- sapply(urls, text_detect)
 
-# DOB detection
+# DOB detection by string processing
 dobs <- sapply(wiki_text, dob_detect) %>% 
   as.character() %>% 
   str_replace("born ", "")
@@ -178,7 +180,7 @@ urls <- read_html(url_16m) %>%
 # Extraction of Wiki text
 wiki_text <- sapply(urls, text_detect)
 
-# DOB detection
+# DOB detection by string processing
 dobs <- sapply(wiki_text, dob_detect) %>% 
   as.character() %>% 
   str_replace("born ", "")
@@ -237,7 +239,7 @@ urls <- read_html(url_16w) %>%
 # Extraction of Wiki text
 wiki_text <- sapply(urls, text_detect)
 
-# DOB detection
+# DOB detection by string processing
 dobs <- sapply(wiki_text, dob_detect) %>% 
   as.character() %>% 
   str_replace("born ", "")
@@ -278,6 +280,9 @@ non_lockdown <- c("Burundi", "Iceland", "Japan", "Nicaragua",
                   "South Korea", "Sweden", "Taiwan", "Tanzania", "Uruguay")
 dat <- dat %>% 
   mutate(lockdown = ifelse(country %in% non_lockdown, 0, 1))
+```
+
+```{r, message=FALSE, warning=FALSE}
 #### Prior attendance at Tokyo ####
 prior_attend <- dat %>% 
   group_by(athlete) %>% 
@@ -305,13 +310,14 @@ jhu <- read_csv(url) %>%
 ```
 
 ```{r, message=FALSE, warning=FALSE}
-#### Population ####
+#### Population/GDP ####
+
 # Read in Johns Hopkins UID lookup table
 # Source: https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv
 url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"
 pop <- read_csv(url)
 
-#### GDP data ####
+# GDP data #
 # Read in GDP data on WORLD BANK
 # Source: https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv
 url <- "https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv"
@@ -365,17 +371,17 @@ tab <- read_html(url) %>%
 africa <- tab[[1]] %>% 
   html_table() %>% 
   .[,c(1,3)]
-africa <- paste0(africa[,1], africa[,2], "South Sudan")
+africa <- paste0(africa[,1], africa[,2], "South Sudan") # add discrepant country name
 # Asia
 asia <- tab[[2]] %>% 
   html_table() %>% 
   .[,c(1,3)]
-asia <- paste0(asia[,1], asia[,2], "Taiwan")
+asia <- paste0(asia[,1], asia[,2], "Taiwan") # add discrepant country name
 # Europe
 europe <- tab[[3]] %>% 
   html_table() %>% 
   .[,c(1,3)]
-europe <- paste0(europe[,1], europe[,2], "Great Britain")
+europe <- paste0(europe[,1], europe[,2], "Great Britain") # add discrepant country name
 # North America
 n_america <- tab[[4]] %>% 
   html_table() %>% 
@@ -394,7 +400,7 @@ oceania <- paste0(oceania[,1], oceania[,2])
 
 dat <- dat %>% 
   mutate(continent = case_when(str_detect(africa, country) ~ "Africa",
-                               country=="Congo (Kinshasa)" ~ "Africa",
+                               country=="Congo (Kinshasa)" ~ "Africa", # add discrepant country name
                                str_detect(asia, country) ~ "Asia",
                                str_detect(europe, country) ~ "Europe",
                                str_detect(n_america, country) ~ "North America",
@@ -411,15 +417,15 @@ dat
 - `athlete`: athlete names
 - `country`: country from which the althlete is
 - `time`: records at each Olympic game
-- `sb`: season best of the athlete
+- `sb`: season best of the athlete; including national record and personal pest
 - `dnf`: did not finish; including did not start and disqualified
 - `dob`: date of birth
 - `age`: age (years) at the time of each Olympic game
 - `sex`: sex category
 - `olympic`: Olympic game name
 - `case_pp`: total case of the athlete country as of July 22, 2021
-- `gdp2019`: GDP in 2019 (less missing values)
-- `gdp2020`: GDP in 2020 (latest)
+- `gdp2019`: GDP in 2019 (less missing values); choose either gdp2019 or gdp2020
+- `gdp2020`: GDP in 2020 (latest); choose either gdp2019 or gdp2020
 - `continent`: continent from which the athlete is
 - `lockdown`: yes if the country from which the athletes is implemented lockdown
 - `prior_attend`: prior attendance of Tokyo 2020 athletes at Rio 2016 (athletes at Rio 2016 are all "no")
