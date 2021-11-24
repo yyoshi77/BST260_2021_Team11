@@ -1,6 +1,6 @@
 ---
-title: "Scraping of Marathon at Tokyo 2020"
-author: "YYoshikawa"
+title: "Association between COVID-19 and Marathon Records"
+author: "BST 260 Team 11"
 date: "11/24/2021"
 output: html_document
 ---
@@ -9,9 +9,10 @@ output: html_document
 
 Intro and something here. 
 
-## Data collection Part (Yusuke Yoshikawa)
+## Data Collection Part (Yusuke Yoshikawa)
 
 ```{r, message=FALSE, warning=FALSE}
+#### Libraries ####
 library(tidyverse)
 library(rvest)
 library(lubridate)
@@ -83,8 +84,9 @@ dat_20m$sex <- "Men"
 # Game label
 dat_20m$olympic <- "Tokyo2020"
 
+```
 
-
+```{r, message=FALSE, warning=FALSE}
 #### Women at Tokyo 2020 ####
 # URL of Women at Tokyo 2020
 url_20w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Women%27s_marathon"
@@ -138,8 +140,9 @@ dat_20w$sex <- "Women"
 # Game label
 dat_20w$olympic <- "Tokyo2020"
 
+```
 
-
+```{r, message=FALSE, warning=FALSE}
 #### Men at Rio 2016 ####
 # URL of Men at Rio 2016
 url_16m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Men%27s_marathon"
@@ -196,6 +199,9 @@ dat_16m$olympic <- "Rio2016"
 
 
 
+```
+
+```{r, message=FALSE, warning=FALSE}
 #### Women at Rio 2016 ####
 # URL of Women at Rio 2016
 url_16w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Women%27s_marathon"
@@ -239,7 +245,7 @@ dobs_d <- dobs %>% str_extract("\\d{1,2}")
 dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
 dobs_y <- dobs %>% str_extract("\\d{4}")
 dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
-dobs[128] <- "1980-10-12" %>% ymd()   # missing data
+dobs[128] <- "1980-10-12" %>% ymd()   # missing data (source: https://en.wikipedia.org/wiki/Graciete_Santana)
 dat_16w$dob <- dobs
 
 # Calculate age at Rio 2016
@@ -252,14 +258,37 @@ dat_16w$sex <- "Women"
 dat_16w$olympic <- "Rio2016"
 
 
-#### Combine the data frames ####
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Combine the 4 dataframes ####
 dat <- rbind(dat_20m, dat_20w, dat_16m, dat_16w)
 
-#### Rename the country ####
+#### Rename the countries ####
 dat <- dat %>% 
-  mutate(country = ifelse(country=="Chinese Taipei", "Taiwan", country))
+  mutate(country = ifelse(country=="Chinese Taipei", "Taiwan", country)) %>% 
+  mutate(country = ifelse(country=="Democratic Republic of the Congo", "Congo (Kinshasa)", country))
 
+```
 
+```{r, message=FALSE, warning=FALSE}
+#### Lockdown ####
+# Source: https://en.m.wikipedia.org/wiki/COVID-19_lockdowns
+non_lockdown <- c("Burundi", "Iceland", "Japan", "Nicaragua",
+                  "South Korea", "Sweden", "Taiwan", "Tanzania", "Uruguay")
+dat <- dat %>% 
+  mutate(lockdown = ifelse(country %in% non_lockdown, 0, 1))
+#### Prior attendance at Tokyo ####
+prior_attend <- dat %>% 
+  group_by(athlete) %>% 
+  filter(n()>1) %>% 
+  pull(athlete)
+dat <- dat %>% 
+  mutate(prior_attend = ifelse(olympic=="Tokyo2020" & athlete %in% prior_attend, 1, 0))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
 #### COVID-19 cases / population as of July 22, 2021 ####
 # COVID-19 cases collected from [Github](https://github.com/CSSEGISandData/COVID-19).
 url <- getURL("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
@@ -267,14 +296,45 @@ jhu <- read_csv(url) %>%
   dplyr::select(`Province/State`, `Country/Region`, `7/22/21`) %>% 
   mutate(`Country/Region2` = ifelse(is.na(`Province/State`), `Country/Region`,
                                     ifelse(`Province/State`=="Hong Kong", "Hong Kong",
-                                           ifelse(str_detect(`Country/Region`, "Congo"), "Congo",
-                                                  `Country/Region`)))) %>% 
+                                           `Country/Region`))) %>% 
   group_by(`Country/Region2`) %>% 
   summarise(case_total = sum(`7/22/21`), .groups="drop") %>% 
   rename(country = `Country/Region2`) %>% 
   dplyr::select(country, case_total)
 
-# rename different country/region names
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Population ####
+# Read in Johns Hopkins UID lookup table
+# Source: https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv
+url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"
+pop <- read_csv(url)
+
+#### GDP data ####
+# Read in GDP data on WORLD BANK
+# Source: https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv
+url <- "https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv"
+gdp <- read_csv("API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3263806.csv")
+
+# Join the population and the GDP data
+temp <- left_join(pop %>% subset(is.na(Province_State)), 
+                  gdp %>% 
+                    rename(iso3 = `Country Code`,
+                           gdp2020 = `2020`,
+                           gdp2019 = `2019`) %>% 
+                    dplyr::select(iso3, `Country Name`, gdp2019, gdp2020),
+                  by = "iso3")
+
+jhu <- left_join(jhu, 
+                 temp %>% rename(country = Country_Region), 
+                 by="country")
+
+jhu <- jhu %>% 
+  mutate(case_pp = case_total/Population) %>% 
+  dplyr::select(country, case_pp, gdp2019, gdp2020)
+
+# Reclassify discrepant country names
 jhu <- jhu %>% 
   mutate(country = ifelse(country %in% dat$country, country, 
                           case_when(country == "Taiwan*" ~ "Taiwan",
@@ -283,11 +343,17 @@ jhu <- jhu %>%
                                     country == "United Kingdom" ~ "Great Britain",
                                     country == "Korea, South" ~ "South Korea",
                                     country == "US" ~ "United States")))
-# join the datasets 
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### join the datasets (dat+jhu+pop+gdp) ####
 # No data on cases: North Korea, Palestine, Pueruto Rico, Refugee Olympic Team
 dat <- left_join(dat, jhu, by="country")
 
+```
 
+```{r, message=FALSE, warning=FALSE}
 #### Continent ####
 # URL of continent category
 url <- "https://www.newworldencyclopedia.org/entry/list_of_countries_by_continent"
@@ -299,7 +365,7 @@ tab <- read_html(url) %>%
 africa <- tab[[1]] %>% 
   html_table() %>% 
   .[,c(1,3)]
-africa <- paste0(africa[,1], africa[,2], "South Sudan", "Democratic Republic of the Congo")
+africa <- paste0(africa[,1], africa[,2], "South Sudan")
 # Asia
 asia <- tab[[2]] %>% 
   html_table() %>% 
@@ -328,15 +394,39 @@ oceania <- paste0(oceania[,1], oceania[,2])
 
 dat <- dat %>% 
   mutate(continent = case_when(str_detect(africa, country) ~ "Africa",
+                               country=="Congo (Kinshasa)" ~ "Africa",
                                str_detect(asia, country) ~ "Asia",
                                str_detect(europe, country) ~ "Europe",
                                str_detect(n_america, country) ~ "North America",
                                str_detect(s_america, country) ~ "South America",
                                str_detect(oceania, country) ~ "Oceania"))
-
-dat$country %>% table
-
 ```
+
+```{r, message=FALSE, warning=FALSE}
+#### Final dataset ####
+dat
+```
+
+- `rank``: rank at each Olympic game
+- `athlete`: athlete names
+- `country`: country from which the althlete is
+- `time`: records at each Olympic game
+- `sb`: season best of the athlete
+- `dnf`: did not finish; including did not start and disqualified
+- `dob`: date of birth
+- `age`: age (years) at the time of each Olympic game
+- `sex`: sex category
+- `olympic`: Olympic game name
+- `case_pp`: total case of the athlete country as of July 22, 2021
+- `gdp2019`: GDP in 2019 (less missing values)
+- `gdp2020`: GDP in 2020 (latest)
+- `continent`: continent from which the athlete is
+- `lockdown`: yes if the country from which the athletes is implemented lockdown
+- `prior_attend`: prior attendance of Tokyo 2020 athletes at Rio 2016 (athletes at Rio 2016 are all "no")
+
+
+
+## Analysis, Visualization etc. part ##
 
 ```{r, warning=FALSE}
 
