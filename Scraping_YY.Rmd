@@ -1,7 +1,7 @@
 ---
 title: "Scraping of Marathon at Tokyo 2020"
 author: "YYoshikawa"
-date: "11/6/2021"
+date: "11/24/2021"
 output: html_document
 ---
 
@@ -9,18 +9,15 @@ output: html_document
 
 Intro and something here. 
 
-```{r}
-```
-
-## Data collection
+## Data collection Part (Yusuke Yoshikawa)
 
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(rvest)
 library(lubridate)
-```
+if (!require(RCurl)) {install.packages("RCurl", dependencies=TRUE)}
+library(RCurl)
 
-```{r, warning=FALSE}
 #### Men at Tokyo 2020 ####
 # URL of Men at Tokyo2020
 url_20m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Men%27s_marathon"
@@ -81,9 +78,11 @@ if (!require(eeptools)) {install.packages("eeptools", dependencies=TRUE)}
 dat_20m <- dat_20m %>% 
   mutate(age = eeptools::age_calc(dob, ymd("2021-08-08"), units = "years") %>% floor)
 
-# Runner of the 1st-8th
-if (!require(knitr)) {install.packages("knitr", dependencies=TRUE)}
-knitr::kable(dat_20m %>% slice(1:8))
+# Sex category 
+dat_20m$sex <- "Men"
+# Game label
+dat_20m$olympic <- "Tokyo2020"
+
 
 
 #### Women at Tokyo 2020 ####
@@ -107,7 +106,6 @@ dat_20w <- dat_20w %>%
   mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
-
 
 # Age data collection
 urls <- read_html(url_20w) %>% 
@@ -135,12 +133,13 @@ dat_20w$dob <- dobs
 dat_20w <- dat_20w %>% 
   mutate(age = eeptools::age_calc(dob, ymd("2021-08-07"), units = "years") %>% floor)
 
-# Runner of the 1st-8th
-knitr::kable(dat_20w %>% slice(1:8))
+# Sex category 
+dat_20w$sex <- "Women"
+# Game label
+dat_20w$olympic <- "Tokyo2020"
 
-```
 
-```{r, warning=FALSE}
+
 #### Men at Rio 2016 ####
 # URL of Men at Rio 2016
 url_16m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Men%27s_marathon"
@@ -163,7 +162,6 @@ dat_16m <- dat_16m %>%
   mutate(time = ifelse(dnf==1, NA, time)) %>% 
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
-
 
 # Age data collection
 urls <- read_html(url_16m) %>% 
@@ -191,9 +189,10 @@ dat_16m$dob <- dobs
 dat_16m <- dat_16m %>% 
   mutate(age = eeptools::age_calc(dob, ymd("2016-08-21"), units = "years") %>% floor)
 
-# Runner of the 1st-8th
-knitr::kable(dat_16m %>% slice(1:8))
-
+# Sex category 
+dat_16m$sex <- "Men"
+# Game label
+dat_16m$olympic <- "Rio2016"
 
 
 
@@ -220,7 +219,6 @@ dat_16w <- dat_16w %>%
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
 
-
 # Age data collection
 urls <- read_html(url_16w) %>% 
   html_nodes("table") %>% 
@@ -241,14 +239,106 @@ dobs_d <- dobs %>% str_extract("\\d{1,2}")
 dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
 dobs_y <- dobs %>% str_extract("\\d{4}")
 dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dobs[128] <- "1980-10-12" %>% ymd()   # missing data
 dat_16w$dob <- dobs
 
 # Calculate age at Rio 2016
 dat_16w <- dat_16w %>% 
   mutate(age = eeptools::age_calc(dob, ymd("2016-08-14"), units = "years") %>% floor)
 
-# Runner of the 1st-8th
-knitr::kable(dat_16w %>% slice(1:8))
+# Sex category 
+dat_16w$sex <- "Women"
+# Game label
+dat_16w$olympic <- "Rio2016"
+
+
+#### Combine the data frames ####
+dat <- rbind(dat_20m, dat_20w, dat_16m, dat_16w)
+
+#### Rename the country ####
+dat <- dat %>% 
+  mutate(country = ifelse(country=="Chinese Taipei", "Taiwan", country))
+
+
+#### COVID-19 cases / population as of July 22, 2021 ####
+# COVID-19 cases collected from [Github](https://github.com/CSSEGISandData/COVID-19).
+url <- getURL("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+jhu <- read_csv(url) %>%
+  dplyr::select(`Province/State`, `Country/Region`, `7/22/21`) %>% 
+  mutate(`Country/Region2` = ifelse(is.na(`Province/State`), `Country/Region`,
+                                    ifelse(`Province/State`=="Hong Kong", "Hong Kong",
+                                           ifelse(str_detect(`Country/Region`, "Congo"), "Congo",
+                                                  `Country/Region`)))) %>% 
+  group_by(`Country/Region2`) %>% 
+  summarise(case_total = sum(`7/22/21`), .groups="drop") %>% 
+  rename(country = `Country/Region2`) %>% 
+  dplyr::select(country, case_total)
+
+# rename different country/region names
+jhu <- jhu %>% 
+  mutate(country = ifelse(country %in% dat$country, country, 
+                          case_when(country == "Taiwan*" ~ "Taiwan",
+                                    country == "Czechia" ~ "Czech Republic",
+                                    country == "Democratic Republic of the Congo" ~ "Congo",
+                                    country == "United Kingdom" ~ "Great Britain",
+                                    country == "Korea, South" ~ "South Korea",
+                                    country == "US" ~ "United States")))
+# join the datasets 
+# No data on cases: North Korea, Palestine, Pueruto Rico, Refugee Olympic Team
+dat <- left_join(dat, jhu, by="country")
+
+
+#### Continent ####
+# URL of continent category
+url <- "https://www.newworldencyclopedia.org/entry/list_of_countries_by_continent"
+
+# Extract all tables in the page
+tab <- read_html(url) %>% 
+  html_nodes("table") 
+# Africa
+africa <- tab[[1]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+africa <- paste0(africa[,1], africa[,2], "South Sudan", "Democratic Republic of the Congo")
+# Asia
+asia <- tab[[2]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+asia <- paste0(asia[,1], asia[,2], "Taiwan")
+# Europe
+europe <- tab[[3]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+europe <- paste0(europe[,1], europe[,2], "Great Britain")
+# North America
+n_america <- tab[[4]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+n_america <- paste0(n_america[,1], n_america[,2])
+# South America
+s_america <- tab[[5]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+s_america <- paste0(s_america[,1], s_america[,2])
+# Oceania
+oceania <- tab[[6]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+oceania <- paste0(oceania[,1], oceania[,2])
+
+dat <- dat %>% 
+  mutate(continent = case_when(str_detect(africa, country) ~ "Africa",
+                               str_detect(asia, country) ~ "Asia",
+                               str_detect(europe, country) ~ "Europe",
+                               str_detect(n_america, country) ~ "North America",
+                               str_detect(s_america, country) ~ "South America",
+                               str_detect(oceania, country) ~ "Oceania"))
+
+dat$country %>% table
+
+```
+
+```{r, warning=FALSE}
 
 ```
 
