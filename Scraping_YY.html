@@ -397,7 +397,7 @@ dobs_d &lt;- dobs %&gt;% str_extract(&quot;\\d{1,2}&quot;)
 dobs_m &lt;- dobs %&gt;% str_extract(&quot;(January|February|March|April|May|June|July|August|September|October|November|December)&quot;)
 dobs_y &lt;- dobs %&gt;% str_extract(&quot;\\d{4}&quot;)
 dobs &lt;- paste(dobs_y, dobs_m, dobs_d, sep=&quot;-&quot;) %&gt;% ymd()
-dobs[128] &lt;- &quot;1980-10-12&quot; %&gt;% ymd()   # missing data
+dobs[128] &lt;- &quot;1980-10-12&quot; %&gt;% ymd()   # missing data (source: https://en.wikipedia.org/wiki/Graciete_Santana)
 dat_16w$dob &lt;- dobs
 
 # Calculate age at Rio 2016
@@ -546,7 +546,7 @@ dat</code></pre>
 ## #   prior_attend &lt;dbl&gt;, case_pp &lt;dbl&gt;, gdp2019 &lt;dbl&gt;, gdp2020 &lt;dbl&gt;,
 ## #   continent &lt;chr&gt;</code></pre>
 <ul>
-<li>`rank``: rank at each Olympic game</li>
+<li><code>rank</code>: rank at each Olympic game</li>
 <li><code>athlete</code>: athlete names</li>
 <li><code>country</code>: country from which the althlete is</li>
 <li><code>time</code>: records at each Olympic game</li>

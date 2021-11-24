@@ -407,7 +407,7 @@ dat <- dat %>%
 dat
 ```
 
-- `rank``: rank at each Olympic game
+- `rank`: rank at each Olympic game
 - `athlete`: athlete names
 - `country`: country from which the althlete is
 - `time`: records at each Olympic game
