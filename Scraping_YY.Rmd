@@ -410,6 +410,7 @@ dat <- dat %>%
 
 ```{r, message=FALSE, warning=FALSE}
 #### Final dataset ####
+rm(list = ls()[!ls()=="dat"])
 dat
 ```
 
@@ -435,7 +436,6 @@ dat
 ## Analysis, Visualization etc. part ##
 
 ```{r, warning=FALSE}
-
 ```
 
 

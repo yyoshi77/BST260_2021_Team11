@@ -527,6 +527,7 @@ dat &lt;- dat %&gt;%
                                str_detect(s_america, country) ~ &quot;South America&quot;,
                                str_detect(oceania, country) ~ &quot;Oceania&quot;))</code></pre>
 <pre class="r"><code>#### Final dataset ####
+rm(list = ls()[!ls()==&quot;dat&quot;])
 dat</code></pre>
 <pre><code>## # A tibble: 506 × 16
 ##    rank  athlete   country time          sb   dnf dob          age sex   olympic
