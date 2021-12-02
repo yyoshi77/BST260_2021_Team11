@@ -166,7 +166,7 @@ pre code {
 
 <h1 class="title toc-ignore">Association between COVID-19 and Marathon Records</h1>
 <h4 class="author">BST 260 Team 11</h4>
-<h4 class="date">as of 11/24/2021</h4>
+<h4 class="date">as of 12/2/2021</h4>
 
 </div>
 
@@ -428,6 +428,8 @@ dat &lt;- dat %&gt;%
   mutate(prior_attend = ifelse(olympic==&quot;Tokyo2020&quot; &amp; athlete %in% prior_attend, 1, 0))</code></pre>
 <pre class="r"><code>#### COVID-19 cases / population as of July 22, 2021 ####
 # COVID-19 cases collected from [Github](https://github.com/CSSEGISandData/COVID-19).
+#url &lt;- getURL(&quot;https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv&quot;)
+
 url &lt;- &quot;https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv&quot;
 jhu &lt;- read_csv(url) %&gt;%
   dplyr::select(`Province/State`, `Country/Region`, `7/22/21`) %&gt;% 

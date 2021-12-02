@@ -1,7 +1,7 @@
 ---
 title: "Association between COVID-19 and Marathon Records"
 author: "BST 260 Team 11"
-date: "as of 11/24/2021"
+date: "as of 12/2/2021"
 output: html_document
 ---
 
