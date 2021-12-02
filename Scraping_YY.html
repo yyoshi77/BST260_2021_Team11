@@ -181,8 +181,8 @@ pre code {
 library(tidyverse)
 library(rvest)
 library(lubridate)
-if (!require(RCurl)) {install.packages(&quot;RCurl&quot;, dependencies=TRUE)}
-library(RCurl)</code></pre>
+#if (!require(RCurl)) {install.packages(&quot;RCurl&quot;, dependencies=TRUE)}
+#library(RCurl)</code></pre>
 <pre class="r"><code>#### Men at Tokyo 2020 ####
 # URL of Men at Tokyo2020
 url_20m &lt;- &quot;https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Men%27s_marathon&quot;
@@ -428,7 +428,7 @@ dat &lt;- dat %&gt;%
   mutate(prior_attend = ifelse(olympic==&quot;Tokyo2020&quot; &amp; athlete %in% prior_attend, 1, 0))</code></pre>
 <pre class="r"><code>#### COVID-19 cases / population as of July 22, 2021 ####
 # COVID-19 cases collected from [Github](https://github.com/CSSEGISandData/COVID-19).
-url &lt;- getURL(&quot;https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv&quot;)
+url &lt;- &quot;https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv&quot;
 jhu &lt;- read_csv(url) %&gt;%
   dplyr::select(`Province/State`, `Country/Region`, `7/22/21`) %&gt;% 
   mutate(`Country/Region2` = ifelse(is.na(`Province/State`), `Country/Region`,
