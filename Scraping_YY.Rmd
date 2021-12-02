@@ -426,7 +426,7 @@ dat
 - `age`: age (years) at the time of each Olympic game
 - `sex`: sex category
 - `olympic`: Olympic game name
-- `case_pp`: total case of the athlete country as of July 22, 2021
+- `case_pp`: total case per population of the athlete country as of July 22, 2021
 - `gdp2019`: GDP in 2019 (less missing values); choose either gdp2019 or gdp2020
 - `gdp2020`: GDP in 2020 (latest); choose either gdp2019 or gdp2020
 - `continent`: continent from which the athlete is
