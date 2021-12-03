@@ -166,7 +166,7 @@ pre code {
 
 <h1 class="title toc-ignore">Association between COVID-19 and Marathon Records</h1>
 <h4 class="author">BST 260 Team 11</h4>
-<h4 class="date">as of 12/2/2021</h4>
+<h4 class="date">as of 12/3/2021</h4>
 
 </div>
 
@@ -209,7 +209,7 @@ dat_20m &lt;- dat_20m %&gt;%
 urls &lt;- read_html(url_20m) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[8]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athlete&#39;s wiki
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athletes&#39; wikis
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
@@ -273,7 +273,7 @@ dat_20w &lt;- dat_20w %&gt;%
 urls &lt;- read_html(url_20w) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[8]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athlete&#39;s wiki
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athletes&#39; wikis
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
@@ -326,7 +326,7 @@ dat_16m &lt;- dat_16m %&gt;%
 urls &lt;- read_html(url_16m) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[6]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% 
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athletes&#39; wikis
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
@@ -379,7 +379,7 @@ dat_16w &lt;- dat_16w %&gt;%
 urls &lt;- read_html(url_16w) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[6]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% 
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athletes&#39; wikis
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
@@ -527,24 +527,29 @@ dat &lt;- dat %&gt;%
                                str_detect(europe, country) ~ &quot;Europe&quot;,
                                str_detect(n_america, country) ~ &quot;North America&quot;,
                                str_detect(s_america, country) ~ &quot;South America&quot;,
-                               str_detect(oceania, country) ~ &quot;Oceania&quot;))</code></pre>
+                               str_detect(oceania, country) ~ &quot;Oceania&quot;))
+
+# time conversion into seconds for analyses
+dat &lt;- dat %&gt;% 
+  mutate(time_sec = period_to_seconds(time)) %&gt;% 
+  select(rank:time, time_sec, sb:last_col())</code></pre>
 <pre class="r"><code>#### Final dataset ####
 rm(list = ls()[!ls()==&quot;dat&quot;])
 dat</code></pre>
-<pre><code>## # A tibble: 506 × 16
-##    rank  athlete   country time          sb   dnf dob          age sex   olympic
-##    &lt;chr&gt; &lt;chr&gt;     &lt;chr&gt;   &lt;Period&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;chr&gt; &lt;chr&gt;  
-##  1 1     Eliud Ki… Kenya   2H 8M 38S      0     0 1984-11-05    36 Men   Tokyo2…
-##  2 2     Abdi Nag… Nether… 2H 9M 58S      1     0 1989-03-02    32 Men   Tokyo2…
-##  3 3     Bashir A… Belgium 2H 10M 0S      1     0 1989-02-10    32 Men   Tokyo2…
-##  4 4     Lawrence… Kenya   2H 10M 2S      1     0 1988-08-07    33 Men   Tokyo2…
-##  5 5     Ayad Lam… Spain   2H 10M 16S     1     0 1981-10-11    39 Men   Tokyo2…
-##  6 6     Suguru O… Japan   2H 10M 41S     1     0 1991-05-23    30 Men   Tokyo2…
-##  7 7     Alphonce… Tanzan… 2H 11M 35S     1     0 1992-02-14    29 Men   Tokyo2…
-##  8 8     Galen Ru… United… 2H 11M 41S     1     0 1986-05-08    35 Men   Tokyo2…
-##  9 9     Othmane … Morocco 2H 11M 58S     0     0 1992-05-28    29 Men   Tokyo2…
-## 10 10    Koen Nae… Belgium 2H 12M 13S     1     0 1989-09-03    31 Men   Tokyo2…
-## # … with 496 more rows, and 6 more variables: lockdown &lt;dbl&gt;,
+<pre><code>## # A tibble: 506 × 17
+##    rank  athlete  country time       time_sec    sb   dnf dob          age sex  
+##    &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;   &lt;Period&gt;      &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;chr&gt;
+##  1 1     Eliud K… Kenya   2H 8M 38S      7718     0     0 1984-11-05    36 Men  
+##  2 2     Abdi Na… Nether… 2H 9M 58S      7798     1     0 1989-03-02    32 Men  
+##  3 3     Bashir … Belgium 2H 10M 0S      7800     1     0 1989-02-10    32 Men  
+##  4 4     Lawrenc… Kenya   2H 10M 2S      7802     1     0 1988-08-07    33 Men  
+##  5 5     Ayad La… Spain   2H 10M 16S     7816     1     0 1981-10-11    39 Men  
+##  6 6     Suguru … Japan   2H 10M 41S     7841     1     0 1991-05-23    30 Men  
+##  7 7     Alphonc… Tanzan… 2H 11M 35S     7895     1     0 1992-02-14    29 Men  
+##  8 8     Galen R… United… 2H 11M 41S     7901     1     0 1986-05-08    35 Men  
+##  9 9     Othmane… Morocco 2H 11M 58S     7918     0     0 1992-05-28    29 Men  
+## 10 10    Koen Na… Belgium 2H 12M 13S     7933     1     0 1989-09-03    31 Men  
+## # … with 496 more rows, and 7 more variables: olympic &lt;chr&gt;, lockdown &lt;dbl&gt;,
 ## #   prior_attend &lt;dbl&gt;, case_pp &lt;dbl&gt;, gdp2019 &lt;dbl&gt;, gdp2020 &lt;dbl&gt;,
 ## #   continent &lt;chr&gt;</code></pre>
 <ul>
@@ -552,6 +557,7 @@ dat</code></pre>
 <li><code>athlete</code>: athlete names</li>
 <li><code>country</code>: country from which the althlete is</li>
 <li><code>time</code>: records at each Olympic game</li>
+<li><code>time_sec</code>: records at each Olympic game in seconds</li>
 <li><code>sb</code>: season best of the athlete; including national record and personal pest</li>
 <li><code>dnf</code>: did not finish; including did not start and disqualified</li>
 <li><code>dob</code>: date of birth</li>

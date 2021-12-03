@@ -1,7 +1,7 @@
 ---
 title: "Association between COVID-19 and Marathon Records"
 author: "BST 260 Team 11"
-date: "as of 12/2/2021"
+date: "as of 12/3/2021"
 output: html_document
 ---
 
@@ -47,7 +47,7 @@ dat_20m <- dat_20m %>%
 urls <- read_html(url_20m) %>% 
   html_nodes("table") %>% 
   .[[8]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athlete's wiki
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
@@ -115,7 +115,7 @@ dat_20w <- dat_20w %>%
 urls <- read_html(url_20w) %>% 
   html_nodes("table") %>% 
   .[[8]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athlete's wiki
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
@@ -172,7 +172,7 @@ dat_16m <- dat_16m %>%
 urls <- read_html(url_16m) %>% 
   html_nodes("table") %>% 
   .[[6]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
@@ -231,7 +231,7 @@ dat_16w <- dat_16w %>%
 urls <- read_html(url_16w) %>% 
   html_nodes("table") %>% 
   .[[6]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
@@ -408,6 +408,11 @@ dat <- dat %>%
                                str_detect(n_america, country) ~ "North America",
                                str_detect(s_america, country) ~ "South America",
                                str_detect(oceania, country) ~ "Oceania"))
+
+# time conversion into seconds for analyses
+dat <- dat %>% 
+  mutate(time_sec = period_to_seconds(time)) %>% 
+  select(rank:time, time_sec, sb:last_col())
 ```
 
 ```{r, message=FALSE, warning=FALSE}
@@ -420,6 +425,7 @@ dat
 - `athlete`: athlete names
 - `country`: country from which the althlete is
 - `time`: records at each Olympic game
+- `time_sec`: records at each Olympic game in seconds
 - `sb`: season best of the athlete; including national record and personal pest
 - `dnf`: did not finish; including did not start and disqualified
 - `dob`: date of birth
