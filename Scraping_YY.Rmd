@@ -163,7 +163,7 @@ dat_16m <- dat_16m %>%
   mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
   mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
   mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
-  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(dnf = ifelse(time=="DNF" | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
   mutate(time = ifelse(dnf==1, NA, time)) %>% 
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
@@ -222,7 +222,7 @@ dat_16w <- dat_16w %>%
   mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
   mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
   mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
-  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(dnf = ifelse(time=="DNF" | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
   mutate(time = ifelse(dnf==1, NA, time)) %>% 
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
@@ -421,7 +421,7 @@ dat <- dat %>%
 ```{r, message=FALSE, warning=FALSE}
 #### Final dataset ####
 rm(list = ls()[!ls()=="dat"])
-dat
+dat %>% slice(1:10) %>% knitr::kable()
 ```
 
 - `rank`: rank at each Olympic game
