@@ -436,8 +436,7 @@ dat
 - `sex`: sex category
 - `olympic`: Olympic game name
 - `case_pp`: total case per population of the athlete country as of July 22, 2021
-- `gdp2019`: GDP in 2019 (less missing values); choose either gdp2019 or gdp2020
-- `gdp2020`: GDP in 2020 (latest); choose either gdp2019 or gdp2020
+- `gdp2016:2020`: GDP from 2016 to 2020
 - `continent`: continent from which the athlete is
 - `lockdown`: yes if the country from which the athletes is implemented lockdown
 - `prior_attend`: prior attendance of Tokyo 2020 athletes at Rio 2016 (athletes at Rio 2016 are all "no")
