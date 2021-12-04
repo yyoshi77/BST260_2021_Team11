@@ -329,9 +329,12 @@ gdp <- read_csv("API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3263806.csv")
 temp <- left_join(pop %>% subset(is.na(Province_State)), 
                   gdp %>% 
                     rename(iso3 = `Country Code`,
-                           gdp2020 = `2020`,
-                           gdp2019 = `2019`) %>% 
-                    dplyr::select(iso3, `Country Name`, gdp2019, gdp2020),
+                           gdp2016 = `2016`,
+                           gdp2017 = `2017`,
+                           gdp2018 = `2018`,
+                           gdp2019 = `2019`,
+                           gdp2020 = `2020`) %>% 
+                    dplyr::select(iso3, `Country Name`, gdp2016:gdp2020),
                   by = "iso3")
 
 jhu <- left_join(jhu, 
@@ -340,7 +343,7 @@ jhu <- left_join(jhu,
 
 jhu <- jhu %>% 
   mutate(case_pp = case_total/Population) %>% 
-  dplyr::select(country, case_pp, gdp2019, gdp2020)
+  dplyr::select(country, case_pp, gdp2016:gdp2020)
 
 # Reclassify discrepant country names
 jhu <- jhu %>% 
@@ -423,7 +426,7 @@ dat
 
 - `rank`: rank at each Olympic game
 - `athlete`: athlete names
-- `country`: country from which the althlete is
+- `country`: country from which the athlete is
 - `time`: records at each Olympic game
 - `time_sec`: records at each Olympic game in seconds
 - `sb`: season best of the athlete; including national record and personal pest

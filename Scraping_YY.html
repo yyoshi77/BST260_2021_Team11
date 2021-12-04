@@ -457,9 +457,12 @@ gdp &lt;- read_csv(&quot;API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3263806.csv&quot;)
 temp &lt;- left_join(pop %&gt;% subset(is.na(Province_State)), 
                   gdp %&gt;% 
                     rename(iso3 = `Country Code`,
-                           gdp2020 = `2020`,
-                           gdp2019 = `2019`) %&gt;% 
-                    dplyr::select(iso3, `Country Name`, gdp2019, gdp2020),
+                           gdp2016 = `2016`,
+                           gdp2017 = `2017`,
+                           gdp2018 = `2018`,
+                           gdp2019 = `2019`,
+                           gdp2020 = `2020`) %&gt;% 
+                    dplyr::select(iso3, `Country Name`, gdp2016:gdp2020),
                   by = &quot;iso3&quot;)
 
 jhu &lt;- left_join(jhu, 
@@ -468,7 +471,7 @@ jhu &lt;- left_join(jhu,
 
 jhu &lt;- jhu %&gt;% 
   mutate(case_pp = case_total/Population) %&gt;% 
-  dplyr::select(country, case_pp, gdp2019, gdp2020)
+  dplyr::select(country, case_pp, gdp2016:gdp2020)
 
 # Reclassify discrepant country names
 jhu &lt;- jhu %&gt;% 
@@ -536,7 +539,7 @@ dat &lt;- dat %&gt;%
 <pre class="r"><code>#### Final dataset ####
 rm(list = ls()[!ls()==&quot;dat&quot;])
 dat</code></pre>
-<pre><code>## # A tibble: 506 × 17
+<pre><code>## # A tibble: 506 × 20
 ##    rank  athlete  country time       time_sec    sb   dnf dob          age sex  
 ##    &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;   &lt;Period&gt;      &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;chr&gt;
 ##  1 1     Eliud K… Kenya   2H 8M 38S      7718     0     0 1984-11-05    36 Men  
@@ -549,13 +552,13 @@ dat</code></pre>
 ##  8 8     Galen R… United… 2H 11M 41S     7901     1     0 1986-05-08    35 Men  
 ##  9 9     Othmane… Morocco 2H 11M 58S     7918     0     0 1992-05-28    29 Men  
 ## 10 10    Koen Na… Belgium 2H 12M 13S     7933     1     0 1989-09-03    31 Men  
-## # … with 496 more rows, and 7 more variables: olympic &lt;chr&gt;, lockdown &lt;dbl&gt;,
-## #   prior_attend &lt;dbl&gt;, case_pp &lt;dbl&gt;, gdp2019 &lt;dbl&gt;, gdp2020 &lt;dbl&gt;,
-## #   continent &lt;chr&gt;</code></pre>
+## # … with 496 more rows, and 10 more variables: olympic &lt;chr&gt;, lockdown &lt;dbl&gt;,
+## #   prior_attend &lt;dbl&gt;, case_pp &lt;dbl&gt;, gdp2016 &lt;dbl&gt;, gdp2017 &lt;dbl&gt;,
+## #   gdp2018 &lt;dbl&gt;, gdp2019 &lt;dbl&gt;, gdp2020 &lt;dbl&gt;, continent &lt;chr&gt;</code></pre>
 <ul>
 <li><code>rank</code>: rank at each Olympic game</li>
 <li><code>athlete</code>: athlete names</li>
-<li><code>country</code>: country from which the althlete is</li>
+<li><code>country</code>: country from which the athlete is</li>
 <li><code>time</code>: records at each Olympic game</li>
 <li><code>time_sec</code>: records at each Olympic game in seconds</li>
 <li><code>sb</code>: season best of the athlete; including national record and personal pest</li>
