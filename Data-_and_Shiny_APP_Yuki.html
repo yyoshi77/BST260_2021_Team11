@@ -166,15 +166,11 @@ pre code {
 
 <h1 class="title toc-ignore">Association between COVID-19 and Marathon Records</h1>
 <h4 class="author">BST 260 Team 11</h4>
-<h4 class="date">as of 12/3/2021</h4>
+<h4 class="date">12/8/2021</h4>
 
 </div>
 
 
-<div id="introductionbackgrounds" class="section level2">
-<h2>Introduction/Backgrounds</h2>
-<p>Intro and something here.</p>
-</div>
 <div id="data-collection-part-yusuke-yoshikawa" class="section level2">
 <h2>Data Collection Part (Yusuke Yoshikawa)</h2>
 <pre class="r"><code>#### Libraries ####
@@ -538,23 +534,19 @@ dat &lt;- dat %&gt;%
   select(rank:time, time_sec, sb:last_col())</code></pre>
 <pre class="r"><code>#### Final dataset ####
 rm(list = ls()[!ls()==&quot;dat&quot;])
-dat</code></pre>
-<pre><code>## # A tibble: 506 × 20
-##    rank  athlete  country time       time_sec    sb   dnf dob          age sex  
-##    &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;   &lt;Period&gt;      &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;chr&gt;
-##  1 1     Eliud K… Kenya   2H 8M 38S      7718     0     0 1984-11-05    36 Men  
-##  2 2     Abdi Na… Nether… 2H 9M 58S      7798     1     0 1989-03-02    32 Men  
-##  3 3     Bashir … Belgium 2H 10M 0S      7800     1     0 1989-02-10    32 Men  
-##  4 4     Lawrenc… Kenya   2H 10M 2S      7802     1     0 1988-08-07    33 Men  
-##  5 5     Ayad La… Spain   2H 10M 16S     7816     1     0 1981-10-11    39 Men  
-##  6 6     Suguru … Japan   2H 10M 41S     7841     1     0 1991-05-23    30 Men  
-##  7 7     Alphonc… Tanzan… 2H 11M 35S     7895     1     0 1992-02-14    29 Men  
-##  8 8     Galen R… United… 2H 11M 41S     7901     1     0 1986-05-08    35 Men  
-##  9 9     Othmane… Morocco 2H 11M 58S     7918     0     0 1992-05-28    29 Men  
-## 10 10    Koen Na… Belgium 2H 12M 13S     7933     1     0 1989-09-03    31 Men  
-## # … with 496 more rows, and 10 more variables: olympic &lt;chr&gt;, lockdown &lt;dbl&gt;,
-## #   prior_attend &lt;dbl&gt;, case_pp &lt;dbl&gt;, gdp2016 &lt;dbl&gt;, gdp2017 &lt;dbl&gt;,
-## #   gdp2018 &lt;dbl&gt;, gdp2019 &lt;dbl&gt;, gdp2020 &lt;dbl&gt;, continent &lt;chr&gt;</code></pre>
+head(dat)</code></pre>
+<pre><code>## # A tibble: 6 × 20
+##   rank  athlete   country time       time_sec    sb   dnf dob          age sex  
+##   &lt;chr&gt; &lt;chr&gt;     &lt;chr&gt;   &lt;Period&gt;      &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;chr&gt;
+## 1 1     Eliud Ki… Kenya   2H 8M 38S      7718     0     0 1984-11-05    36 Men  
+## 2 2     Abdi Nag… Nether… 2H 9M 58S      7798     1     0 1989-03-02    32 Men  
+## 3 3     Bashir A… Belgium 2H 10M 0S      7800     1     0 1989-02-10    32 Men  
+## 4 4     Lawrence… Kenya   2H 10M 2S      7802     1     0 1988-08-07    33 Men  
+## 5 5     Ayad Lam… Spain   2H 10M 16S     7816     1     0 1981-10-11    39 Men  
+## 6 6     Suguru O… Japan   2H 10M 41S     7841     1     0 1991-05-23    30 Men  
+## # … with 10 more variables: olympic &lt;chr&gt;, lockdown &lt;dbl&gt;, prior_attend &lt;dbl&gt;,
+## #   case_pp &lt;dbl&gt;, gdp2016 &lt;dbl&gt;, gdp2017 &lt;dbl&gt;, gdp2018 &lt;dbl&gt;, gdp2019 &lt;dbl&gt;,
+## #   gdp2020 &lt;dbl&gt;, continent &lt;chr&gt;</code></pre>
 <ul>
 <li><code>rank</code>: rank at each Olympic game</li>
 <li><code>athlete</code>: athlete names</li>
@@ -576,6 +568,97 @@ dat</code></pre>
 </div>
 <div id="analysis-visualization-etc.-part" class="section level2">
 <h2>Analysis, Visualization etc. part</h2>
+<div id="shiny-app-analysis---yuki-zhong" class="section level3">
+<h3>Shiny App Analysis - Yuki Zhong</h3>
+<pre class="r"><code>library(shiny)
+library(ggthemes)</code></pre>
+<pre><code>## Warning: package &#39;ggthemes&#39; was built under R version 3.6.2</code></pre>
+<pre class="r"><code>library(shinythemes)</code></pre>
+<pre><code>## Warning: package &#39;shinythemes&#39; was built under R version 3.6.2</code></pre>
+<pre class="r"><code>shinyApp(ui = fluidPage( 
+    # Change theme 
+    theme = shinytheme(&quot;superhero&quot;),
+   
+    #name title Panel
+    titlePanel(&quot;Difference of time between 2016 and 2020 Olympics marathon record for each rank&quot;),
+    
+    br(),
+    
+    # Sidebar
+    sidebarLayout(
+        
+        # Widgets for selection
+        sidebarPanel(
+            # Explanatory text
+            p(&quot;This Shiny apps allows you to use a slide bar to see the change of differene in each ranking between 2016 and 2020 Olympics, seperately for men and women.&quot;),
+            
+            br(),
+            
+            # Radio buttons that allows the user to choose a gender
+            radioButtons(inputId = &quot;sex&quot;, label = &quot;Select men or women&quot;,
+                         choices = c(&quot;Men&quot;, &quot;Women&quot;)),
+            
+            # Input: rank slider with basic animation
+            sliderInput(&quot;rank&quot;, &quot;rank&quot;,
+                        min = 1, max = 73,
+                        value = 1, 
+                        step = 1,
+                        ticks = TRUE,  
+                        animate = animationOptions(interval = 800) # add play speed
+        )),
+        
+        # Main panel
+        mainPanel(
+          
+            # Plot
+            plotOutput(&quot;plot&quot;),
+            br(), 
+            # Message about the difference in seconds for each rank
+            textOutput(&quot;diff&quot;)
+        )
+    )
+),
+
+# Define server logic
+server = function(input, output){
+    
+    # Make the selected line for the selected gender
+    output$plot = renderPlot({
+      
+        # create the dataset for the plot
+        i &lt;- 1
+        n &lt;- input$rank+1
+        y_diff&lt;- c() #define an empty list that will be the y-value for the plot
+        x_rank&lt;- c() #define an empty list that will be the x-value for the plot
+      
+        #use a loop function to keep adding the previous differences and ranks to the list given a specific rank 
+        while (i&lt; n) {
+          dat_diff &lt;- dat %&gt;% filter(sex == input$sex &amp; rank == i) 
+          y_diff &lt;- c(y_diff,  diff(dat_diff$time_sec))
+          x_rank &lt;- c(x_rank, i)
+          i &lt;- i+1
+        }
+        
+        # Scatterplot for the difference in seconds vs. rank
+        ggplot() +
+        theme_economist() +
+        geom_line(aes(x = x_rank, y=y_diff), color = ifelse(input$sex == &quot;Men&quot;, &#39;deepskyblue2&#39;,&#39;hotpink2&#39;), size = 1) +
+        xlab(&quot;rank&quot;) +
+        ylab(&quot;Difference (seconds Rio - Tokyo)&quot;) +
+        geom_hline(yintercept = 0, colour = &#39;black&#39;) 
+        
+            
+    })
+    
+    # Identify which Olympics had a faster record by how many seconds, for each rank and gender
+    output$diff = renderText({
+        dat_diff &lt;- dat %&gt;% filter(sex == input$sex &amp; rank == input$rank) 
+        paste0(&quot;For rank &quot;, input$rank, &quot; in &quot;,input$sex, &quot;&#39;s Marathon , &quot;, ifelse(diff(dat_diff$time_sec)&lt;0,  &quot;the record in Tokyo 2020&quot;, &quot;the record in Rio 2016&quot;), &quot; is &quot;, abs(diff(dat_diff$time_sec)), &quot; seconds faster&quot;)
+    })
+})</code></pre>
+<p><div style="width: 100% ; height: 400px ; text-align: center; box-sizing: border-box; -moz-box-sizing: border-box; -webkit-box-sizing: border-box;" class="muted well">Shiny applications not supported in static R Markdown documents</div></p>
+<p><strong>Interpretation:</strong> From the interactive graphs, we can see that for both men and women, Tokyo 2020 Olympics seemed to have faster records overall. For men, the records in Rio are faster in high ranks between 1-16 and middle ranks between 30-40. For women, the records in Rio are faster only sparsely between the rank 30 and 50. In addition, we can see that the difference of time is more exaggerated in high ranks and low ranks, while the differences in the middle ranks are not too many.</p>
+</div>
 </div>
 
 
