@@ -166,7 +166,7 @@ pre code {
 
 <h1 class="title toc-ignore">Association between COVID-19 and Marathon Records</h1>
 <h4 class="author">BST 260 Team 11</h4>
-<h4 class="date">as of 12/2/2021</h4>
+<h4 class="date">as of 12/3/2021</h4>
 
 </div>
 
@@ -209,7 +209,7 @@ dat_20m &lt;- dat_20m %&gt;%
 urls &lt;- read_html(url_20m) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[8]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athlete&#39;s wiki
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athletes&#39; wikis
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
@@ -273,7 +273,7 @@ dat_20w &lt;- dat_20w %&gt;%
 urls &lt;- read_html(url_20w) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[8]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athlete&#39;s wiki
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athletes&#39; wikis
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
@@ -317,7 +317,7 @@ dat_16m &lt;- dat_16m %&gt;%
   mutate(rank = ifelse(rank==&quot;—&quot;, NA, rank)) %&gt;% 
   mutate(sb = ifelse(is.na(rank), NA, 0)) %&gt;% 
   mutate(sb = ifelse(Notes %in% c(&quot;SB&quot;,&quot;NR&quot;,&quot;PB&quot;), 1, sb)) %&gt;% 
-  mutate(dnf = ifelse(Notes %in% c(&quot;DNF&quot;,&quot;DNS&quot;,&quot;DSQ&quot;), 1, 0)) %&gt;% 
+  mutate(dnf = ifelse(time==&quot;DNF&quot; | Notes %in% c(&quot;DNF&quot;,&quot;DNS&quot;,&quot;DSQ&quot;), 1, 0)) %&gt;% 
   mutate(time = ifelse(dnf==1, NA, time)) %&gt;% 
   mutate(time = lubridate::hms(time)) %&gt;% 
   select(rank, athlete, country, time, sb, dnf)
@@ -326,7 +326,7 @@ dat_16m &lt;- dat_16m %&gt;%
 urls &lt;- read_html(url_16m) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[6]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% 
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athletes&#39; wikis
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
@@ -370,7 +370,7 @@ dat_16w &lt;- dat_16w %&gt;%
   mutate(rank = ifelse(rank==&quot;—&quot;, NA, rank)) %&gt;% 
   mutate(sb = ifelse(is.na(rank), NA, 0)) %&gt;% 
   mutate(sb = ifelse(Notes %in% c(&quot;SB&quot;,&quot;NR&quot;,&quot;PB&quot;), 1, sb)) %&gt;% 
-  mutate(dnf = ifelse(Notes %in% c(&quot;DNF&quot;,&quot;DNS&quot;,&quot;DSQ&quot;), 1, 0)) %&gt;% 
+  mutate(dnf = ifelse(time==&quot;DNF&quot; | Notes %in% c(&quot;DNF&quot;,&quot;DNS&quot;,&quot;DSQ&quot;), 1, 0)) %&gt;% 
   mutate(time = ifelse(dnf==1, NA, time)) %&gt;% 
   mutate(time = lubridate::hms(time)) %&gt;% 
   select(rank, athlete, country, time, sb, dnf)
@@ -379,7 +379,7 @@ dat_16w &lt;- dat_16w %&gt;%
 urls &lt;- read_html(url_16w) %&gt;% 
   html_nodes(&quot;table&quot;) %&gt;% 
   .[[6]] %&gt;% 
-  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% 
+  html_nodes(&quot;a[href *= &#39;/wiki/&#39; ]&quot;) %&gt;% # extract the individual athletes&#39; wikis
   html_attr(&quot;href&quot;) %&gt;% 
   .[!str_detect(.,&quot;Olympics&quot;) &amp; !str_detect(., &quot;Bests&quot;) &amp; !str_detect(., &quot;conditions&quot;) &amp; !str_detect(., &quot;records&quot;)] %&gt;%
   paste(&quot;https://en.wikipedia.org&quot;, ., sep=&quot;&quot;)
@@ -457,9 +457,12 @@ gdp &lt;- read_csv(&quot;API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3263806.csv&quot;)
 temp &lt;- left_join(pop %&gt;% subset(is.na(Province_State)), 
                   gdp %&gt;% 
                     rename(iso3 = `Country Code`,
-                           gdp2020 = `2020`,
-                           gdp2019 = `2019`) %&gt;% 
-                    dplyr::select(iso3, `Country Name`, gdp2019, gdp2020),
+                           gdp2016 = `2016`,
+                           gdp2017 = `2017`,
+                           gdp2018 = `2018`,
+                           gdp2019 = `2019`,
+                           gdp2020 = `2020`) %&gt;% 
+                    dplyr::select(iso3, `Country Name`, gdp2016:gdp2020),
                   by = &quot;iso3&quot;)
 
 jhu &lt;- left_join(jhu, 
@@ -468,7 +471,7 @@ jhu &lt;- left_join(jhu,
 
 jhu &lt;- jhu %&gt;% 
   mutate(case_pp = case_total/Population) %&gt;% 
-  dplyr::select(country, case_pp, gdp2019, gdp2020)
+  dplyr::select(country, case_pp, gdp2016:gdp2020)
 
 # Reclassify discrepant country names
 jhu &lt;- jhu %&gt;% 
@@ -527,31 +530,291 @@ dat &lt;- dat %&gt;%
                                str_detect(europe, country) ~ &quot;Europe&quot;,
                                str_detect(n_america, country) ~ &quot;North America&quot;,
                                str_detect(s_america, country) ~ &quot;South America&quot;,
-                               str_detect(oceania, country) ~ &quot;Oceania&quot;))</code></pre>
+                               str_detect(oceania, country) ~ &quot;Oceania&quot;))
+
+# time conversion into seconds for analyses
+dat &lt;- dat %&gt;% 
+  mutate(time_sec = period_to_seconds(time)) %&gt;% 
+  select(rank:time, time_sec, sb:last_col())</code></pre>
 <pre class="r"><code>#### Final dataset ####
 rm(list = ls()[!ls()==&quot;dat&quot;])
-dat</code></pre>
-<pre><code>## # A tibble: 506 × 16
-##    rank  athlete   country time          sb   dnf dob          age sex   olympic
-##    &lt;chr&gt; &lt;chr&gt;     &lt;chr&gt;   &lt;Period&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;chr&gt; &lt;chr&gt;  
-##  1 1     Eliud Ki… Kenya   2H 8M 38S      0     0 1984-11-05    36 Men   Tokyo2…
-##  2 2     Abdi Nag… Nether… 2H 9M 58S      1     0 1989-03-02    32 Men   Tokyo2…
-##  3 3     Bashir A… Belgium 2H 10M 0S      1     0 1989-02-10    32 Men   Tokyo2…
-##  4 4     Lawrence… Kenya   2H 10M 2S      1     0 1988-08-07    33 Men   Tokyo2…
-##  5 5     Ayad Lam… Spain   2H 10M 16S     1     0 1981-10-11    39 Men   Tokyo2…
-##  6 6     Suguru O… Japan   2H 10M 41S     1     0 1991-05-23    30 Men   Tokyo2…
-##  7 7     Alphonce… Tanzan… 2H 11M 35S     1     0 1992-02-14    29 Men   Tokyo2…
-##  8 8     Galen Ru… United… 2H 11M 41S     1     0 1986-05-08    35 Men   Tokyo2…
-##  9 9     Othmane … Morocco 2H 11M 58S     0     0 1992-05-28    29 Men   Tokyo2…
-## 10 10    Koen Nae… Belgium 2H 12M 13S     1     0 1989-09-03    31 Men   Tokyo2…
-## # … with 496 more rows, and 6 more variables: lockdown &lt;dbl&gt;,
-## #   prior_attend &lt;dbl&gt;, case_pp &lt;dbl&gt;, gdp2019 &lt;dbl&gt;, gdp2020 &lt;dbl&gt;,
-## #   continent &lt;chr&gt;</code></pre>
+dat %&gt;% slice(1:10) %&gt;% knitr::kable()</code></pre>
+<table>
+<colgroup>
+<col width="2%" />
+<col width="8%" />
+<col width="6%" />
+<col width="5%" />
+<col width="4%" />
+<col width="1%" />
+<col width="1%" />
+<col width="5%" />
+<col width="1%" />
+<col width="1%" />
+<col width="4%" />
+<col width="4%" />
+<col width="6%" />
+<col width="4%" />
+<col width="6%" />
+<col width="6%" />
+<col width="6%" />
+<col width="6%" />
+<col width="6%" />
+<col width="6%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">rank</th>
+<th align="left">athlete</th>
+<th align="left">country</th>
+<th align="right">time</th>
+<th align="right">time_sec</th>
+<th align="right">sb</th>
+<th align="right">dnf</th>
+<th align="left">dob</th>
+<th align="right">age</th>
+<th align="left">sex</th>
+<th align="left">olympic</th>
+<th align="right">lockdown</th>
+<th align="right">prior_attend</th>
+<th align="right">case_pp</th>
+<th align="right">gdp2016</th>
+<th align="right">gdp2017</th>
+<th align="right">gdp2018</th>
+<th align="right">gdp2019</th>
+<th align="right">gdp2020</th>
+<th align="left">continent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">1</td>
+<td align="left">Eliud Kipchoge</td>
+<td align="left">Kenya</td>
+<td align="right">2H 8M 38S</td>
+<td align="right">7718</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1984-11-05</td>
+<td align="right">36</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">0.0036285</td>
+<td align="right">6.918876e+10</td>
+<td align="right">7.896500e+10</td>
+<td align="right">8.777858e+10</td>
+<td align="right">9.550309e+10</td>
+<td align="right">9.884294e+10</td>
+<td align="left">Africa</td>
+</tr>
+<tr class="even">
+<td align="left">2</td>
+<td align="left">Abdi Nageeye</td>
+<td align="left">Netherlands</td>
+<td align="right">2H 9M 58S</td>
+<td align="right">7798</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1989-03-02</td>
+<td align="right">32</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">0.1083166</td>
+<td align="right">7.835280e+11</td>
+<td align="right">8.318100e+11</td>
+<td align="right">9.135970e+11</td>
+<td align="right">9.101940e+11</td>
+<td align="right">9.138650e+11</td>
+<td align="left">Europe</td>
+</tr>
+<tr class="odd">
+<td align="left">3</td>
+<td align="left">Bashir Abdi</td>
+<td align="left">Belgium</td>
+<td align="right">2H 10M 0S</td>
+<td align="right">7800</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1989-02-10</td>
+<td align="right">32</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.0967716</td>
+<td align="right">4.757400e+11</td>
+<td align="right">5.015230e+11</td>
+<td align="right">5.434110e+11</td>
+<td align="right">5.332550e+11</td>
+<td align="right">5.153320e+11</td>
+<td align="left">Europe</td>
+</tr>
+<tr class="even">
+<td align="left">4</td>
+<td align="left">Lawrence Cherono</td>
+<td align="left">Kenya</td>
+<td align="right">2H 10M 2S</td>
+<td align="right">7802</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1988-08-07</td>
+<td align="right">33</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.0036285</td>
+<td align="right">6.918876e+10</td>
+<td align="right">7.896500e+10</td>
+<td align="right">8.777858e+10</td>
+<td align="right">9.550309e+10</td>
+<td align="right">9.884294e+10</td>
+<td align="left">Africa</td>
+</tr>
+<tr class="odd">
+<td align="left">5</td>
+<td align="left">Ayad Lamdassem</td>
+<td align="left">Spain</td>
+<td align="right">2H 10M 16S</td>
+<td align="right">7816</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1981-10-11</td>
+<td align="right">39</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.0908839</td>
+<td align="right">1.232080e+12</td>
+<td align="right">1.309300e+12</td>
+<td align="right">1.420300e+12</td>
+<td align="right">1.393050e+12</td>
+<td align="right">1.281480e+12</td>
+<td align="left">Europe</td>
+</tr>
+<tr class="even">
+<td align="left">6</td>
+<td align="left">Suguru Osako</td>
+<td align="left">Japan</td>
+<td align="right">2H 10M 41S</td>
+<td align="right">7841</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1991-05-23</td>
+<td align="right">30</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0.0067817</td>
+<td align="right">5.003680e+12</td>
+<td align="right">4.930840e+12</td>
+<td align="right">5.036890e+12</td>
+<td align="right">5.148780e+12</td>
+<td align="right">4.975420e+12</td>
+<td align="left">Asia</td>
+</tr>
+<tr class="odd">
+<td align="left">7</td>
+<td align="left">Alphonce Simbu</td>
+<td align="left">Tanzania</td>
+<td align="right">2H 11M 35S</td>
+<td align="right">7895</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1992-02-14</td>
+<td align="right">29</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0.0000085</td>
+<td align="right">4.977402e+10</td>
+<td align="right">5.332063e+10</td>
+<td align="right">5.700371e+10</td>
+<td align="right">6.113687e+10</td>
+<td align="right">6.240975e+10</td>
+<td align="left">Africa</td>
+</tr>
+<tr class="even">
+<td align="left">8</td>
+<td align="left">Galen Rupp</td>
+<td align="left">United States</td>
+<td align="right">2H 11M 41S</td>
+<td align="right">7901</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1986-05-08</td>
+<td align="right">35</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">0.1043183</td>
+<td align="right">1.874510e+13</td>
+<td align="right">1.954300e+13</td>
+<td align="right">2.061190e+13</td>
+<td align="right">2.143320e+13</td>
+<td align="right">2.093660e+13</td>
+<td align="left">North America</td>
+</tr>
+<tr class="odd">
+<td align="left">9</td>
+<td align="left">Othmane El Goumri</td>
+<td align="left">Morocco</td>
+<td align="right">2H 11M 58S</td>
+<td align="right">7918</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="left">1992-05-28</td>
+<td align="right">29</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">0.0153820</td>
+<td align="right">1.033120e+11</td>
+<td align="right">1.096830e+11</td>
+<td align="right">1.180960e+11</td>
+<td align="right">1.197000e+11</td>
+<td align="right">1.128710e+11</td>
+<td align="left">Africa</td>
+</tr>
+<tr class="even">
+<td align="left">10</td>
+<td align="left">Koen Naert</td>
+<td align="left">Belgium</td>
+<td align="right">2H 12M 13S</td>
+<td align="right">7933</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="left">1989-09-03</td>
+<td align="right">31</td>
+<td align="left">Men</td>
+<td align="left">Tokyo2020</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">0.0967716</td>
+<td align="right">4.757400e+11</td>
+<td align="right">5.015230e+11</td>
+<td align="right">5.434110e+11</td>
+<td align="right">5.332550e+11</td>
+<td align="right">5.153320e+11</td>
+<td align="left">Europe</td>
+</tr>
+</tbody>
+</table>
 <ul>
 <li><code>rank</code>: rank at each Olympic game</li>
 <li><code>athlete</code>: athlete names</li>
-<li><code>country</code>: country from which the althlete is</li>
+<li><code>country</code>: country from which the athlete is</li>
 <li><code>time</code>: records at each Olympic game</li>
+<li><code>time_sec</code>: records at each Olympic game in seconds</li>
 <li><code>sb</code>: season best of the athlete; including national record and personal pest</li>
 <li><code>dnf</code>: did not finish; including did not start and disqualified</li>
 <li><code>dob</code>: date of birth</li>
@@ -559,8 +822,7 @@ dat</code></pre>
 <li><code>sex</code>: sex category</li>
 <li><code>olympic</code>: Olympic game name</li>
 <li><code>case_pp</code>: total case per population of the athlete country as of July 22, 2021</li>
-<li><code>gdp2019</code>: GDP in 2019 (less missing values); choose either gdp2019 or gdp2020</li>
-<li><code>gdp2020</code>: GDP in 2020 (latest); choose either gdp2019 or gdp2020</li>
+<li><code>gdp2016:2020</code>: GDP from 2016 to 2020</li>
 <li><code>continent</code>: continent from which the athlete is</li>
 <li><code>lockdown</code>: yes if the country from which the athletes is implemented lockdown</li>
 <li><code>prior_attend</code>: prior attendance of Tokyo 2020 athletes at Rio 2016 (athletes at Rio 2016 are all “no”)</li>

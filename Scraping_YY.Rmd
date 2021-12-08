@@ -1,7 +1,7 @@
 ---
 title: "Association between COVID-19 and Marathon Records"
 author: "BST 260 Team 11"
-date: "as of 12/2/2021"
+date: "as of 12/3/2021"
 output: html_document
 ---
 
@@ -47,7 +47,7 @@ dat_20m <- dat_20m %>%
 urls <- read_html(url_20m) %>% 
   html_nodes("table") %>% 
   .[[8]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athlete's wiki
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
@@ -115,7 +115,7 @@ dat_20w <- dat_20w %>%
 urls <- read_html(url_20w) %>% 
   html_nodes("table") %>% 
   .[[8]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athlete's wiki
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
@@ -163,7 +163,7 @@ dat_16m <- dat_16m %>%
   mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
   mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
   mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
-  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(dnf = ifelse(time=="DNF" | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
   mutate(time = ifelse(dnf==1, NA, time)) %>% 
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
@@ -172,7 +172,7 @@ dat_16m <- dat_16m %>%
 urls <- read_html(url_16m) %>% 
   html_nodes("table") %>% 
   .[[6]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
@@ -222,7 +222,7 @@ dat_16w <- dat_16w %>%
   mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
   mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
   mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
-  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(dnf = ifelse(time=="DNF" | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
   mutate(time = ifelse(dnf==1, NA, time)) %>% 
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
@@ -231,7 +231,7 @@ dat_16w <- dat_16w %>%
 urls <- read_html(url_16w) %>% 
   html_nodes("table") %>% 
   .[[6]] %>% 
-  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
   html_attr("href") %>% 
   .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
   paste("https://en.wikipedia.org", ., sep="")
@@ -329,9 +329,12 @@ gdp <- read_csv("API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3263806.csv")
 temp <- left_join(pop %>% subset(is.na(Province_State)), 
                   gdp %>% 
                     rename(iso3 = `Country Code`,
-                           gdp2020 = `2020`,
-                           gdp2019 = `2019`) %>% 
-                    dplyr::select(iso3, `Country Name`, gdp2019, gdp2020),
+                           gdp2016 = `2016`,
+                           gdp2017 = `2017`,
+                           gdp2018 = `2018`,
+                           gdp2019 = `2019`,
+                           gdp2020 = `2020`) %>% 
+                    dplyr::select(iso3, `Country Name`, gdp2016:gdp2020),
                   by = "iso3")
 
 jhu <- left_join(jhu, 
@@ -340,7 +343,7 @@ jhu <- left_join(jhu,
 
 jhu <- jhu %>% 
   mutate(case_pp = case_total/Population) %>% 
-  dplyr::select(country, case_pp, gdp2019, gdp2020)
+  dplyr::select(country, case_pp, gdp2016:gdp2020)
 
 # Reclassify discrepant country names
 jhu <- jhu %>% 
@@ -408,18 +411,24 @@ dat <- dat %>%
                                str_detect(n_america, country) ~ "North America",
                                str_detect(s_america, country) ~ "South America",
                                str_detect(oceania, country) ~ "Oceania"))
+
+# time conversion into seconds for analyses
+dat <- dat %>% 
+  mutate(time_sec = period_to_seconds(time)) %>% 
+  select(rank:time, time_sec, sb:last_col())
 ```
 
 ```{r, message=FALSE, warning=FALSE}
 #### Final dataset ####
 rm(list = ls()[!ls()=="dat"])
-dat
+dat %>% slice(1:10) %>% knitr::kable()
 ```
 
 - `rank`: rank at each Olympic game
 - `athlete`: athlete names
-- `country`: country from which the althlete is
+- `country`: country from which the athlete is
 - `time`: records at each Olympic game
+- `time_sec`: records at each Olympic game in seconds
 - `sb`: season best of the athlete; including national record and personal pest
 - `dnf`: did not finish; including did not start and disqualified
 - `dob`: date of birth
@@ -427,8 +436,7 @@ dat
 - `sex`: sex category
 - `olympic`: Olympic game name
 - `case_pp`: total case per population of the athlete country as of July 22, 2021
-- `gdp2019`: GDP in 2019 (less missing values); choose either gdp2019 or gdp2020
-- `gdp2020`: GDP in 2020 (latest); choose either gdp2019 or gdp2020
+- `gdp2016:2020`: GDP from 2016 to 2020
 - `continent`: continent from which the athlete is
 - `lockdown`: yes if the country from which the athletes is implemented lockdown
 - `prior_attend`: prior attendance of Tokyo 2020 athletes at Rio 2016 (athletes at Rio 2016 are all "no")
