@@ -6,7 +6,6 @@ output: html_document
 ---
 
 ## Data Collection Part (Yusuke Yoshikawa)
-
 ```{r, message=FALSE, warning=FALSE}
 #### Libraries ####
 library(tidyverse)
@@ -627,8 +626,8 @@ summary(datsecondfemale)
 
 cut_female <- 9339
 datsecondfemale<-datsecondfemale%>%
-  mutate(timebinary=ifelse(time_sec<cut_female,0,1)) %>%
-  mutate(timebinary=as.factor(timebinary))
+   mutate(timebinary=ifelse(time_sec<cut_female,0,1)) %>%
+   mutate(timebinary=as.factor(timebinary))
 summary(datsecondfemale)
 
 

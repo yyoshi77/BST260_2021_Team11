@@ -1341,8 +1341,8 @@ summary(datsecondfemale)</code></pre>
 
 cut_female &lt;- 9339
 datsecondfemale&lt;-datsecondfemale%&gt;%
-  mutate(timebinary=ifelse(time_sec&lt;cut_female,0,1)) %&gt;%
-  mutate(timebinary=as.factor(timebinary))
+   mutate(timebinary=ifelse(time_sec&lt;cut_female,0,1)) %&gt;%
+   mutate(timebinary=as.factor(timebinary))
 summary(datsecondfemale)</code></pre>
 <pre><code>##     time_sec        case_pp                  continent       age       
 ##  Min.   : 8840   Min.   :8.520e-06   Africa       :11   Min.   :24.00  
