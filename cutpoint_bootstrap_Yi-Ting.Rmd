@@ -1,0 +1,358 @@
+---
+title: "Cutpoint Analysis and Bootstrapping"
+output: html_document
+author: Yi-Ting Tsai
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+load("data.RData")
+```
+
+```{r, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(cutpointr)
+library(randomForest)
+library(pROC)
+library(rpart)
+library(caret)
+library(splitstackshape)
+library(broom)
+library(e1071)
+library(knitr)
+```
+
+## Cutpoint Analysis for Classification
+
+We are also interested in seeing how COVID cases per population and other covariates can help us predict marathon records in Tokyo 2020 Olympics. Rather than doing prediction and getting the exact performance, we can simplify the task to doing classification. The first thing we have to do is to convert the continuous marathon record data into a binary variable. We can first decide a cutpoint, and then classify the marathon records bigger than this point into a “slower” group, and the records smaller than this point into a “faster” group. 
+
+Since we are splitting the records into faster and slower group, and men are usually faster, there will be some problem if we combine men’s and women’s data together in this analysis. For example, the faster group are all men, and the slower group are all women. To avoid this potential issue, we will conduct our classification analysis separately on men and women. 
+
+We utilize the training data to determine the optimal cutpoint by the R package `cutpointr`. We first create a label that assigns the top half ranking athletes as 1, and the second half ranking athletes as 0, and use this label to calculate the sensitivity and specificity for different cutpoints. We then choose the cutpoint that gives us the highest sensitivity plus specificity.
+
+### Optimal Cutpoint for Men
+
+```{r}
+datsecond <- dat %>% 
+  filter(dnf==0 & olympic=="Tokyo2020" & sex=="Men") %>%
+  dplyr::select(rank, time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+
+datsecond <- datsecond %>% 
+  mutate(rank_b = ifelse(as.numeric(rank)<=38, 1, 0))
+
+set.seed(1)
+train.rows <- sample(rownames(datsecond), dim(datsecond)[1]*0.7)
+test.rows <- setdiff(rownames(datsecond), train.rows)
+train_set <- datsecond[train.rows, ]
+test_set <- datsecond[test.rows, ]
+
+opt_cut <- cutpointr(train_set, time_sec, rank_b, pos_class = 1, direction = "<=")  #8239
+plot_metric(opt_cut)
+```
+
+### Optimal Cutpoint for Women
+
+```{r}
+datsecond <- dat %>% 
+  filter(dnf==0 & olympic=="Tokyo2020" & sex=="Women") %>%
+  dplyr::select(rank, time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+
+datsecond <- datsecond %>% 
+  mutate(rank_b = ifelse(as.numeric(rank)<=37, 1, 0))
+
+set.seed(1)
+train.rows <- sample(rownames(datsecond), dim(datsecond)[1]*0.7)
+test.rows <- setdiff(rownames(datsecond), train.rows)
+train_set <- datsecond[train.rows, ]
+test_set <- datsecond[test.rows, ]
+
+opt_cut <- cutpointr(train_set, time_sec, rank_b, pos_class = 1, direction = "<=")  # 9339
+plot_metric(opt_cut)
+```
+
+The above two graphs are plotting the sum of sensitivity and specificity (using the function `sum_sens_spec`) against different cutpoints. From this analysis, the optimal cutpoint for men is 8239, and the optimal cutpoint for women is 9339. We will use these cutpoints throughout our machine learning and bootstrapping models.
+
+
+## Bootstrapping
+
+Since the sample size of our dataset is very small, only 71 observations for men and women, respectively, this may cause a problem when training machine learning models. Therefore, we try to apply some methods that incorporate bootstrapping to see whether we can get better results. 
+
+We try to compare two sets of original vs. bootstrapped methods:
+
+1. Decision tree and random forest
+
+2. Naive Bayes and bootstrapped version of Naive Bayes
+
+For random forest, we just apply the random forest function. For Naive Bayes, we do the bootstrap manually. We first sample with replacement from the training data 100 times, each time with sample size equal to my training set. Then, for each resample, we fit a model and get the predicted class for each test data. We then use majority vote among these 100 models to determine the class of each data. 
+
+We will first fit the models and then present the ROC curves and some statistics in the end to do some comparisons.
+
+## Bootstrapping for Men
+
+```{r}
+# preparing the data
+# filter: 2020, Men, finish race
+datsecond <- dat %>% 
+  filter(dnf==0 & olympic=="Tokyo2020" & sex=="Men") %>%
+  dplyr::select(time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+
+# convert categorical/binary variables into factors
+datsecond <- datsecond %>% 
+  mutate(continent=as.factor(continent), prior_attend=as.factor(prior_attend))
+
+# omit the rows with NA
+datsecond<-datsecond %>% filter(!is.na(time_sec))%>% filter(!is.na(case_pp))%>% filter(!is.na(continent))%>% filter(!is.na(age))%>% filter(!is.na(gdp2020))%>% filter(!is.na(prior_attend))
+
+# add the binary outcome variable
+cut <- 8239
+datsecond<-datsecond%>%
+  mutate(timebinary=ifelse(time_sec<cut,0,1)) %>%
+  mutate(timebinary=as.factor(timebinary))
+
+# split train (70%), test (30%)
+set.seed(1)
+x <- stratified(datsecond, "timebinary", 0.70, keep.rownames = TRUE)
+train_set <- x %>% dplyr::select(-rn)
+train_index <- as.numeric(x$rn)
+test_set <- datsecond[-train_index,]
+```
+
+
+### Decision Tree and Random Forest (Men)
+
+```{r}
+# Decision trees
+set.seed(1)
+tree_fit <- rpart(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_tree <- predict(tree_fit,newdata=test_set)[,2]
+y_hat_tree <- factor(ifelse(p_hat_tree>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_tree),reference=test_set$timebinary,positive="1")
+
+# Random Forest
+set.seed(1)
+rf_fit <- randomForest(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_rf <- predict(rf_fit,newdata=test_set,type="prob")[,2]
+y_hat_rf <- factor(ifelse(p_hat_rf>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_rf),reference=test_set$timebinary,positive="1")
+
+# ROC curves
+roc_tree <- pROC::roc(test_set$timebinary,p_hat_tree)
+roc_rf <- pROC::roc(test_set$timebinary,p_hat_rf)
+p1 <- ggroc(list("Decision Tree"=roc_tree, "Random Forest"=roc_rf))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves - tree (men)") +
+  xlab("Specificity")+ylab("Sensitivity")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+## AUC
+pROC::auc(roc_tree)
+pROC::auc(roc_rf)
+```
+
+### Naive Bayes and the Bootstrapped Version (Men)
+```{r}
+# Naive Bayes
+nb_fit <- naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_nb<-predict(nb_fit, newdata=test_set, type="raw")[,2]
+y_hat_nb<-factor(ifelse(p_hat_nb>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_nb),reference=test_set$timebinary,positive="1")
+
+# bootstrapped version of naive bayes
+rows <- 1:49
+pred_class_table <- data.frame(matrix(ncol = nrow(test_set), nrow = 0))
+
+for(iter in 1:100){
+  # create the resample train set
+  sample_row <- sample(rows, size=85, replace = TRUE)
+  resample_train_set <- data.frame()
+  for(i in sample_row){
+    add_this <- train_set[i,]
+    resample_train_set <- rbind(resample_train_set, add_this)
+  }
+  nb_fit<-naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = resample_train_set)
+  p_hat_nb_b<-predict(nb_fit,newdata=test_set,type="raw")[,2]
+  y_hat_nb_b<-ifelse(p_hat_nb_b>0.5,1,0)
+  pred_class_table <- rbind(pred_class_table, y_hat_nb_b)
+}
+
+p_hat_nb_b <- apply(pred_class_table,2,sum)/100
+y_hat_nb_b <- factor(ifelse(p_hat_nb_b > 0.5, 1, 0))
+
+confusionMatrix(as.factor(y_hat_nb_b), reference = test_set$timebinary,positive="1")
+
+# ROC curves
+roc_nb <- pROC::roc(test_set$timebinary,p_hat_nb)
+roc_nb_b <- pROC::roc(test_set$timebinary,p_hat_nb_b)
+p2 <- ggroc(list("nb"=roc_nb, "nb (bootstrapped)"=roc_nb_b))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves - Naive Bayes (men)") +
+  xlab("Specificity")+ylab("Sensitivity")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+## AUC
+pROC::auc(roc_nb)
+pROC::auc(roc_nb_b)
+```
+
+
+## Bootstrapping for Women
+
+```{r}
+# preparing the data
+# filter: 2020, Women, finish race
+datsecond <- dat %>% 
+  filter(dnf==0 & olympic=="Tokyo2020" & sex=="Women") %>%
+  dplyr::select(time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+
+# convert categorical/binary variables into factors
+datsecond <- datsecond %>% 
+  mutate(continent=as.factor(continent), prior_attend=as.factor(prior_attend))
+
+# omit the rows with NA
+datsecond<-datsecond %>% filter(!is.na(time_sec))%>% filter(!is.na(case_pp))%>% filter(!is.na(continent))%>% filter(!is.na(age))%>% filter(!is.na(gdp2020))%>% filter(!is.na(prior_attend))
+
+# add the binary outcome variable
+cut <- 9333
+datsecond<-datsecond%>%
+  mutate(timebinary=ifelse(time_sec<cut,0,1)) %>%
+  mutate(timebinary=as.factor(timebinary))
+
+# split train (70%), test (30%)
+set.seed(1)
+x <- stratified(datsecond, "timebinary", 0.70, keep.rownames = TRUE)
+train_set <- x %>% dplyr::select(-rn)
+train_index <- as.numeric(x$rn)
+test_set <- datsecond[-train_index,]
+```
+
+
+### Decision Tree and Random Forest (Women)
+
+```{r}
+# Decision trees
+set.seed(1)
+tree_fit <- rpart(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_tree <- predict(tree_fit,newdata=test_set)[,2]
+y_hat_tree <- factor(ifelse(p_hat_tree>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_tree),reference=test_set$timebinary,positive="1")
+
+# Random Forest
+set.seed(1)
+rf_fit <- randomForest(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_rf <- predict(rf_fit,newdata=test_set,type="prob")[,2]
+y_hat_rf <- factor(ifelse(p_hat_rf>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_rf),reference=test_set$timebinary,positive="1")
+
+# ROC curves
+roc_tree <- pROC::roc(test_set$timebinary,p_hat_tree)
+roc_rf <- pROC::roc(test_set$timebinary,p_hat_rf)
+p3 <- ggroc(list("Decision Tree"=roc_tree, "Random Forest"=roc_rf))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves - tree (women)") +
+  xlab("Specificity")+ylab("Sensitivity")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+## AUC
+pROC::auc(roc_tree)
+pROC::auc(roc_rf)
+```
+
+### Naive Bayes and the Bootstrapped Version (Women)
+```{r}
+# Naive Bayes
+nb_fit <- naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_nb<-predict(nb_fit, newdata=test_set, type="raw")[,2]
+y_hat_nb<-factor(ifelse(p_hat_nb>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_nb),reference=test_set$timebinary,positive="1")
+
+# bootstrapped version of Naive Bayes
+rows <- 1:49
+pred_class_table <- data.frame(matrix(ncol = nrow(test_set), nrow = 0))
+
+for(iter in 1:100){
+  # create the resample train set
+  sample_row <- sample(rows, size=85, replace = TRUE)
+  resample_train_set <- data.frame()
+  for(i in sample_row){
+    add_this <- train_set[i,]
+    resample_train_set <- rbind(resample_train_set, add_this)
+  }
+  nb_fit<-naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = resample_train_set)
+  p_hat_nb_b<-predict(nb_fit,newdata=test_set,type="raw")[,2]
+  y_hat_nb_b<-ifelse(p_hat_nb_b>0.5,1,0)
+  pred_class_table <- rbind(pred_class_table, y_hat_nb_b)
+}
+
+p_hat_nb_b <- apply(pred_class_table,2,sum)/100
+y_hat_nb_b <- factor(ifelse(p_hat_nb_b > 0.5, 1, 0))
+
+confusionMatrix(as.factor(y_hat_nb_b), reference = test_set$timebinary,positive="1")
+
+# ROC curves
+roc_nb <- pROC::roc(test_set$timebinary,p_hat_nb)
+roc_nb_b <- pROC::roc(test_set$timebinary,p_hat_nb_b)
+p4 <- ggroc(list("nb"=roc_nb, "nb (bootstrapped)"=roc_nb_b))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves - Naive Bayes (women)") +
+  xlab("Specificity")+ylab("Sensitivity")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+## AUC
+pROC::auc(roc_nb)
+pROC::auc(roc_nb_b)
+```
+
+### ROC Curves
+```{r}
+par(mfrow=c(2,3), las=1)
+p1
+p2
+p3
+p4
+```
+
+
+### Summary Statistics
+```{r}
+# Table for men's models
+Men_models <- c("Tree", "Random Forest", "NB", "NB (bootstrapped)")
+Accuracy <- c("0.5455", "0.5455", "0.5909", "0.5455")
+Sensitivity <- c("0.5833", "0.6667", "0.7500", "0.6667")
+Specificity <- c("0.5000", "0.4000", "0.4000", "0.4000")
+PPV <- c("0.5833", "0.5714", "0.6000", "0.5714")
+NPV <- c("0.5000", "0.5000", "0.5714", "0.5000")
+AUC <- c("0.5625", "0.5458", "0.65", "0.6167")
+
+male_df <- data.frame(Men_models, Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+
+kable(male_df, format = "markdown", digits = 2)
+
+# Table for men's models
+Women_models <- c("Tree", "Random Forest", "NB", "NB (bootstrapped)")
+Accuracy <- c("0.5", "0.7727", "0.6818", "0.6818")
+Sensitivity <- c("0.5000", "0.8333", "0.8333", "0.8333")
+Specificity <- c("0.5000", "0.7000", "0.5000", "0.5000")
+PPV <- c("0.5455", "0.5714", "0.6667", "0.6667")
+NPV <- c("0.4545", "0.5000", "0.7143", "0.7143")
+AUC <- c("0.6083", "0.7", "0.7", "0.6583")
+
+female_df <- data.frame(Women_models, Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+
+kable(female_df, format = "markdown", digits = 2)
+```
+
+### Discussion
+
+We can now compare the result of decision tree to random forest, and Naive Bayes to the bootstrapped version of Naive Bayes. If we focus on the accuracy and the AUC, we discovered bootstrapping is only helpful in one of the four models: the women case of tree and random forest. The accuracy increases from 0.5 to 0.7727, and AUC increases from 0.6083 to 0.7. For the 3 other cases, bootstrapping either doesn't have effect on the performance or is making the result even less accurate. 
+
+This result is quite different from our expectation, since we are hoping that bootstrapping can help improve the performance our classification models a bit. Perhaps this is still due to our small sample size that causes bootstrapping to be not as useful. 
+
+
