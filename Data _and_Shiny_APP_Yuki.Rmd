@@ -465,7 +465,7 @@ shinyApp(ui = fluidPage(
         # Widgets for selection
         sidebarPanel(
             # Explanatory text
-            p("This Shiny apps allows you to use a slide bar to see the change of differene in each ranking between 2016 and 2020 Olympics, seperately for men and women."),
+            p("This Shiny apps allows you to use a slide bar to see the change of differene in each ranking between 2016 and 2020 Olympics, separately for men and women."),
             
             br(),
             
@@ -519,7 +519,7 @@ server = function(input, output){
         theme_economist() +
         geom_line(aes(x = x_rank, y=y_diff), color = ifelse(input$sex == "Men", 'deepskyblue2','hotpink2'), size = 1) +
         xlab("rank") +
-        ylab("Difference (seconds Rio - Tokyo)") +
+        ylab("Difference (seconds, Rio minus Tokyo)") +
         geom_hline(yintercept = 0, colour = 'black') 
         
             
