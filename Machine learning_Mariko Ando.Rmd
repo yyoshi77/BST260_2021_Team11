@@ -1,0 +1,751 @@
+---
+title: "Association between COVID-19 and Marathon Records"
+author: "BST 260 Team 11"
+date: "as of 12/9/2021"
+output: html_document
+---
+
+## Data Collection Part (Yusuke Yoshikawa)
+
+```{r, message=FALSE, warning=FALSE}
+#### Libraries ####
+library(tidyverse)
+library(rvest)
+library(lubridate)
+#if (!require(RCurl)) {install.packages("RCurl", dependencies=TRUE)}
+#library(RCurl)
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Men at Tokyo 2020 ####
+# URL of Men at Tokyo2020
+url_20m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Men%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_20m) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_20m <- tab[[8]] %>% 
+  html_table() 
+
+# Data reshaping
+colnames(dat_20m)[1:4] <- c("rank", "athlete", "country", "time")
+dat_20m$rank[1:3] <- c(1:3)
+dat_20m <- dat_20m %>% 
+  mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = lubridate::hms(time)) %>%
+  select(rank, athlete, country, time, sb, dnf)
+
+# Age data collection
+urls <- read_html(url_20m) %>% 
+  html_nodes("table") %>% 
+  .[[8]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text function
+text_detect <- function(url){
+  read_html(url) %>% 
+    html_nodes("body") %>% 
+    .[[1]] %>% 
+    html_text()
+}
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection by string processing
+dob_detect <- function(string){
+  string %>% str_extract(
+  "(born \\d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December).\\d{4})|(born (January|February|March|April|May|June|July|August|September|October|November|December) \\d{1,2}. \\d{4})"
+  )
+}
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dat_20m$dob <- dobs
+
+# Calculate age at Tokyo 2020
+if (!require(eeptools)) {install.packages("eeptools", dependencies=TRUE)}
+dat_20m <- dat_20m %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2021-08-08"), units = "years") %>% floor)
+
+# Sex category 
+dat_20m$sex <- "Men"
+# Game label
+dat_20m$olympic <- "Tokyo2020"
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Women at Tokyo 2020 ####
+# URL of Women at Tokyo 2020
+url_20w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Women%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_20w) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_20w <- tab[[8]] %>% 
+  html_table()
+
+# Data reshaping
+colnames(dat_20w)[1:4] <- c("rank", "athlete", "country", "time")
+dat_20w$rank[1:3] <- c(1:3)
+dat_20w <- dat_20w %>% 
+  mutate(rank = ifelse(rank=="–", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = lubridate::hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+# Age data collection
+urls <- read_html(url_20w) %>% 
+  html_nodes("table") %>% 
+  .[[8]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text by the function above
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection by string processing
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dat_20w$dob <- dobs
+
+# Calculate age at Tokyo 2020
+dat_20w <- dat_20w %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2021-08-07"), units = "years") %>% floor)
+
+# Sex category 
+dat_20w$sex <- "Women"
+# Game label
+dat_20w$olympic <- "Tokyo2020"
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Men at Rio 2016 ####
+# URL of Men at Rio 2016
+url_16m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Men%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_16m) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_16m <- tab[[6]] %>% 
+  html_table() 
+
+# Data reshaping
+colnames(dat_16m)[1:4] <- c("rank", "athlete", "country", "time")
+dat_16m$rank[1:3] <- c(1:3)
+dat_16m <- dat_16m %>% 
+  mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(time=="DNF" | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = ifelse(dnf==1, NA, time)) %>% 
+  mutate(time = lubridate::hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+# Age data collection
+urls <- read_html(url_16m) %>% 
+  html_nodes("table") %>% 
+  .[[6]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection by string processing
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dat_16m$dob <- dobs
+
+# Calculate age at Rio 2016
+dat_16m <- dat_16m %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2016-08-21"), units = "years") %>% floor)
+
+# Sex category 
+dat_16m$sex <- "Men"
+# Game label
+dat_16m$olympic <- "Rio2016"
+
+
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Women at Rio 2016 ####
+# URL of Women at Rio 2016
+url_16w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Women%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_16w) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_16w <- tab[[6]] %>% 
+  html_table() 
+
+# Data reshaping
+colnames(dat_16w)[1:4] <- c("rank", "athlete", "country", "time")
+dat_16w$rank[1:3] <- c(1:3)
+dat_16w <- dat_16w %>% 
+  mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(time=="DNF" | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = ifelse(dnf==1, NA, time)) %>% 
+  mutate(time = lubridate::hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+# Age data collection
+urls <- read_html(url_16w) %>% 
+  html_nodes("table") %>% 
+  .[[6]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection by string processing
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dobs[128] <- "1980-10-12" %>% ymd()   # missing data (source: https://en.wikipedia.org/wiki/Graciete_Santana)
+dat_16w$dob <- dobs
+
+# Calculate age at Rio 2016
+dat_16w <- dat_16w %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2016-08-14"), units = "years") %>% floor)
+
+# Sex category 
+dat_16w$sex <- "Women"
+# Game label
+dat_16w$olympic <- "Rio2016"
+
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Combine the 4 dataframes ####
+dat <- rbind(dat_20m, dat_20w, dat_16m, dat_16w)
+
+#### Rename the countries ####
+dat <- dat %>% 
+  mutate(country = ifelse(country=="Chinese Taipei", "Taiwan", country)) %>% 
+  mutate(country = ifelse(country=="Democratic Republic of the Congo", "Congo (Kinshasa)", country))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Lockdown ####
+# Source: https://en.m.wikipedia.org/wiki/COVID-19_lockdowns
+non_lockdown <- c("Burundi", "Iceland", "Japan", "Nicaragua",
+                  "South Korea", "Sweden", "Taiwan", "Tanzania", "Uruguay")
+dat <- dat %>% 
+  mutate(lockdown = ifelse(country %in% non_lockdown, 0, 1))
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Prior attendance at Tokyo ####
+prior_attend <- dat %>% 
+  group_by(athlete) %>% 
+  filter(n()>1) %>% 
+  pull(athlete)
+dat <- dat %>% 
+  mutate(prior_attend = ifelse(olympic=="Tokyo2020" & athlete %in% prior_attend, 1, 0))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### COVID-19 cases / population as of July 22, 2021 ####
+# COVID-19 cases collected from [Github](https://github.com/CSSEGISandData/COVID-19).
+#url <- getURL("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+
+url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
+jhu <- read_csv(url) %>%
+  dplyr::select(`Province/State`, `Country/Region`, `7/22/21`) %>% 
+  mutate(`Country/Region2` = ifelse(is.na(`Province/State`), `Country/Region`,
+                                    ifelse(`Province/State`=="Hong Kong", "Hong Kong",
+                                           `Country/Region`))) %>% 
+  group_by(`Country/Region2`) %>% 
+  summarise(case_total = sum(`7/22/21`), .groups="drop") %>% 
+  rename(country = `Country/Region2`) %>% 
+  dplyr::select(country, case_total)
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Population/GDP ####
+
+# Read in Johns Hopkins UID lookup table
+# Source: https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv
+url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"
+pop <- read_csv(url)
+
+# GDP data #
+# Read in GDP data on WORLD BANK
+# Source: https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv
+url <- "https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv"
+gdp <- read_csv("API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3263806.csv")
+
+# Join the population and the GDP data
+temp <- left_join(pop %>% subset(is.na(Province_State)), 
+                  gdp %>% 
+                    rename(iso3 = `Country Code`,
+                           gdp2016 = `2016`,
+                           gdp2017 = `2017`,
+                           gdp2018 = `2018`,
+                           gdp2019 = `2019`,
+                           gdp2020 = `2020`) %>% 
+                    dplyr::select(iso3, `Country Name`, gdp2016:gdp2020),
+                  by = "iso3")
+
+jhu <- left_join(jhu, 
+                 temp %>% rename(country = Country_Region), 
+                 by="country")
+
+jhu <- jhu %>% 
+  mutate(case_pp = case_total/Population) %>% 
+  dplyr::select(country, case_pp, gdp2016:gdp2020)
+
+# Reclassify discrepant country names
+jhu <- jhu %>% 
+  mutate(country = ifelse(country %in% dat$country, country, 
+                          case_when(country == "Taiwan*" ~ "Taiwan",
+                                    country == "Czechia" ~ "Czech Republic",
+                                    country == "Democratic Republic of the Congo" ~ "Congo",
+                                    country == "United Kingdom" ~ "Great Britain",
+                                    country == "Korea, South" ~ "South Korea",
+                                    country == "US" ~ "United States")))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### join the datasets (dat+jhu+pop+gdp) ####
+# No data on cases: North Korea, Palestine, Pueruto Rico, Refugee Olympic Team
+dat <- left_join(dat, jhu, by="country")
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Continent ####
+# URL of continent category
+url <- "https://www.newworldencyclopedia.org/entry/list_of_countries_by_continent"
+
+# Extract all tables in the page
+tab <- read_html(url) %>% 
+  html_nodes("table") 
+# Africa
+africa <- tab[[1]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+africa <- paste0(africa[,1], africa[,2], "South Sudan") # add discrepant country name
+# Asia
+asia <- tab[[2]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+asia <- paste0(asia[,1], asia[,2], "Taiwan") # add discrepant country name
+# Europe
+europe <- tab[[3]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+europe <- paste0(europe[,1], europe[,2], "Great Britain") # add discrepant country name
+# North America
+n_america <- tab[[4]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+n_america <- paste0(n_america[,1], n_america[,2])
+# South America
+s_america <- tab[[5]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+s_america <- paste0(s_america[,1], s_america[,2])
+# Oceania
+oceania <- tab[[6]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+oceania <- paste0(oceania[,1], oceania[,2])
+
+dat <- dat %>% 
+  mutate(continent = case_when(str_detect(africa, country) ~ "Africa",
+                               country=="Congo (Kinshasa)" ~ "Africa", # add discrepant country name
+                               str_detect(asia, country) ~ "Asia",
+                               str_detect(europe, country) ~ "Europe",
+                               str_detect(n_america, country) ~ "North America",
+                               str_detect(s_america, country) ~ "South America",
+                               str_detect(oceania, country) ~ "Oceania"))
+
+# time conversion into seconds for analyses
+dat <- dat %>% 
+  mutate(time_sec = period_to_seconds(time)) %>% 
+  select(rank:time, time_sec, sb:last_col())
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Final dataset ####
+rm(list = ls()[!ls()=="dat"])
+dat %>% slice(1:10) %>% knitr::kable()
+```
+
+- `rank`: rank at each Olympic game
+- `athlete`: athlete names
+- `country`: country from which the athlete is
+- `time`: records at each Olympic game
+- `time_sec`: records at each Olympic game in seconds
+- `sb`: season best of the athlete; including national record and personal pest
+- `dnf`: did not finish; including did not start and disqualified
+- `dob`: date of birth
+- `age`: age (years) at the time of each Olympic game
+- `sex`: sex category
+- `olympic`: Olympic game name
+- `case_pp`: total case per population of the athlete country as of July 22, 2021
+- `gdp2016:2020`: GDP from 2016 to 2020
+- `continent`: continent from which the athlete is
+- `lockdown`: yes if the country from which the athletes is implemented lockdown
+- `prior_attend`: prior attendance of Tokyo 2020 athletes at Rio 2016 (athletes at Rio 2016 are all "no")
+
+
+
+
+# Machine learning: model building & comparison (Mariko Ando)
+## Analysis for Men's records
+```{r, warning=FALSE}
+dat=as.data.frame(dat)
+```
+
+```{r}
+# library
+library(tidyverse)
+library(rvest)
+library(lubridate)
+library(broom)
+library(caret)
+library(ggplot2)
+library(e1071)
+library(MASS)
+library(rpart)
+library(randomForest)
+library(pROC)
+library(adabag)
+library(splitstackshape)
+library(knitr)
+```
+
+```{r}
+# filter: 2020, Men, finish race
+# I created a dataset, datsecond, just including male athletes who finished race in the Tokyo 2020 game.
+# As men ran much faster than women, we separately analyzed the male and female datasets.
+datsecond <- dat %>% filter(dnf==0 & olympic=="Tokyo2020" & sex=="Men") %>% dplyr::select(time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+summary(datsecond)
+```
+
+```{r}
+# convert binary and categorical data as factor
+datsecond <- datsecond %>% 
+  mutate(continent=as.factor(continent), prior_attend=as.factor(prior_attend))
+
+# omit rows with NA
+# Here, we decided to conduct complete case analysis.
+datsecond<-datsecond %>% filter(!is.na(time_sec))%>% filter(!is.na(case_pp))%>% filter(!is.na(continent))%>% filter(!is.na(age))%>% filter(!is.na(gdp2020))%>% filter(!is.na(prior_attend))
+summary(datsecond)
+
+# Based on the calculation by Yi-Ting, one member of our team, we used 8239 sec as a cutpoint for male athletes. We defined time_sec<8239 as better record (outcome=0) and time_sec>=8239 as worse record (outcome=1).
+
+cut <- 8239
+datsecond<-datsecond%>%
+  mutate(timebinary=ifelse(time_sec<cut,0,1)) %>%
+  mutate(timebinary=as.factor(timebinary))
+summary(datsecond)
+
+
+# split train (70%), test (30%)
+# We used stratified function to split the dataset into training and testing datasets because we wanted to get almost equal distribution of outcome in both datasets. After splitting, the training set included 49 athletes while the testing set included 22 athletes.
+set.seed(1)
+x <- stratified(datsecond, "timebinary", 0.70, keep.rownames = TRUE)
+train_set <- x %>% dplyr::select(-rn)
+train_index <- as.numeric(x$rn)
+test_set <- datsecond[-train_index,]
+dim(train_set)
+dim(test_set)
+```
+
+```{r}
+# Here, we decided to build six models to predict the worse record.
+# Six models include logistic regression, Naive Bayes, knn, QDA, LDA, and Trees. The exposure is COVID-19 severity (continuous) defined as the case number per population. Covariates are continent (categorical), age (continuous), gdp2020 (continuous), and prior_attend (binary). 
+#In each model, we will report accuracy, sensitivity, and specificity.
+
+# Model1: logistic regression
+# accuracy = 0.5000, sensitivity = 0.5833, specificity = 0.4000 
+glm_fit <- glm(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set, family = "binomial")
+p_hat_logit<-predict(glm_fit, newdata=test_set, type="response")
+y_hat_logit <- factor(ifelse(p_hat_logit > 0.5, 1, 0))
+confusionMatrix(as.factor(y_hat_logit), reference = test_set$timebinary,positive="1")
+```
+```{r}
+# Model2: Naive Bayes
+# accuracy = 0.5909, sensitivity = 0.7500, specificity = 0.4000
+nb_fit <- naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_nb<-predict(nb_fit, newdata=test_set, type="raw")[,2]
+y_hat_nb<-factor(ifelse(p_hat_nb>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_nb),reference=test_set$timebinary,positive="1")
+```
+```{r}
+# Model3: knn
+# For the value of k, we chose the number closest to the squared root of the sample size of the training set, which was 7.
+# accuracy =  0.5000, sensitivity = 0.5833, specificity = 0.4000 
+knn_fit<-knn3(timebinary ~ case_pp + continent + age  + gdp2020 + prior_attend, data = train_set, k=7)
+p_hat_knn<-predict(knn_fit,newdata=test_set)[,2]
+y_hat_knn<-factor(ifelse(p_hat_knn>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_knn),reference=test_set$timebinary,positive="1")
+```
+
+```{r}
+# Model4: QDA 
+# accuracy = 0.5000 , sensitivity = 0.6667, specificity = 0.3000
+set.seed(1)
+qda_fit <- qda(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_qda <- predict(qda_fit,newdata=test_set)$posterior[,2]
+y_hat_qda <- factor(ifelse(p_hat_qda>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_qda),reference=test_set$timebinary,positive="1")
+```
+```{r}
+# Model5: LDA
+# accuracy = 0.5000, sensitivity = 0.5833, specificity = 0.4000
+set.seed(1)
+lda_fit <- lda(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_lda <- predict(lda_fit,newdata=test_set)$posterior[,2]
+y_hat_lda <- factor(ifelse(p_hat_lda>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_lda),reference=test_set$timebinary,positive="1")
+```
+```{r}
+# Model6: Decision trees
+# accuracy = 0.5455, sensitivity = 0.5833, specificity = 0.5000
+set.seed(1)
+tree_fit <- rpart(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_tree <- predict(tree_fit,newdata=test_set)[,2]
+y_hat_tree <- factor(ifelse(p_hat_tree>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_tree),reference=test_set$timebinary,positive="1")
+```
+```{r}
+# plot ROC curve
+# Here, we compare ROC curves and AUC to see which model has a better discrimination.
+
+roc_logit<-roc(test_set$timebinary,p_hat_logit)
+roc_nb<-roc(test_set$timebinary,p_hat_nb)
+roc_knn<-roc(test_set$timebinary,p_hat_knn)
+roc_qda<-roc(test_set$timebinary,p_hat_qda)
+roc_lda<-roc(test_set$timebinary,p_hat_lda)
+roc_tree<-roc(test_set$timebinary,p_hat_tree)
+ggroc(list("Logistic regression"=roc_logit,"Naive Bayes"=roc_nb,"kNN, k=7"=roc_knn, "QDA model"=roc_qda,"LDA model"=roc_lda, "Decision Tree"=roc_tree))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves") +
+  xlab("Specificity")+
+  ylab("Sensitivity")+ 
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Naive Bayes model has the highest AUC.
+auc(roc_logit)
+auc(roc_nb)
+auc(roc_knn)
+auc(roc_qda)
+auc(roc_lda)
+auc(roc_tree)
+```
+
+```{r}
+#Table for men's models
+Men_models <- c("Logistic", "Naive Bayes", "kNN, k=7", "QDA", "LDA", "Trees")
+Accuracy <- c("0.5000", "0.5909", "0.5000", "0.5000", "0.5000", "0.5455")
+Sensitivity <- c("0.5833", "0.7500", "0.5833", "0.6667", "0.5833", "0.5833")
+Specificity <- c("0.4000", "0.4000", "0.4000", "0.3000", "0.4000", "0.5000")
+PPV <- c("0.5385", "0.6000", "0.5385", "0.5333", "0.5385", "0.5833")
+NPV <- c("0.4444", "0.5714", "0.4444", "0.4286", "0.4444", "0.5000")
+AUC <- c("0.4917", "0.6500", "0.4833", "0.5375", "0.5333", "0.5625")
+male_df <- data.frame(Men_models, Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+
+male_df2 <- head(male_df)
+knitr::kable(male_df2, col.names = gsub("[.]", " ", names(male_df)), caption = "Table 1: Model comparison for male athletes")
+```
+##### (Summary) According to the outputs, Naive Bayes model showed the highest accuracy and the highest AUC (i.e., best discrimination). Then, Naive Bayes model could be the best model to predict male thletes' performance in the future Olympic Games during a similar pandemic. However, as the current dataset included very small number of samples, we should ideally repeat similar analyses by using bootstrapping methods or other datasets with larger sample size of athletes and compare the models. 
+
+
+## Analysis for women's records
+```{r}
+# filter: 2020, Women, finish race
+# I created a dataset, datsecondfemale, just including female athletes who finished race in the Tokyo 2020 game.
+
+datsecondfemale <- dat %>% filter(dnf==0 & olympic=="Tokyo2020" & sex=="Women") %>% dplyr::select(time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+summary(datsecondfemale)
+
+# convert binary and categorical data as factor
+datsecondfemale <- datsecondfemale %>% 
+  mutate(continent=as.factor(continent), prior_attend=as.factor(prior_attend))
+
+# omit rows with NA
+#Here, we decided to conduct complete case analysis again.
+datsecondfemale<-datsecondfemale %>% filter(!is.na(time_sec))%>% filter(!is.na(case_pp))%>% filter(!is.na(continent))%>% filter(!is.na(age))%>% filter(!is.na(gdp2020))%>% filter(!is.na(prior_attend))
+summary(datsecondfemale)
+```
+
+
+```{r}
+# Based on the calculation by Yi-Ting, one member of our team, we used 9339 sec as a cutpoint for female athletes. We defined time_sec<9339 as better record (outcome=0) and time_sec>=9339 as worse record (outcome=1).
+
+cut_female <- 9339
+datsecondfemale<-datsecondfemale%>%
+  mutate(timebinary=ifelse(time_sec<cut_female,0,1)) %>%
+  mutate(timebinary=as.factor(timebinary))
+summary(datsecondfemale)
+
+
+# split train (70%), test (30%)
+# We used stratified function to split the dataset into training and testing datasets because we wanted to get almost equal distribution of outcome in both datasets. After splitting, the training set included 49 athletes while the testing set included 22 athletes.
+set.seed(1)
+x_female <- stratified(datsecondfemale, "timebinary", 0.70, keep.rownames = TRUE)
+train_set_female <- x_female %>% dplyr::select(-rn)
+train_index_female <- as.numeric(x_female$rn)
+test_set_female <- datsecondfemale[-train_index_female,]
+dim(train_set_female)
+dim(test_set_female)
+```
+
+```{r}
+# Here, we decided to build six models to predict the worse record.
+# Six models include logistic regression, Naive Bayes, knn, QDA, LDA, and Trees. The exposure is COVID-19 severity (continuous) defined as the case number per population. Covariates are continent (categorical), age (continuous), gdp2020 (continuous), and prior_attend (binary). 
+#In each model, we will report accuracy, sensitivity, and specificity.
+
+# Model1: logistic regression
+# accuracy = 0.5909, sensitivity = 0.7273 , specificity = 0.4545 
+glm_fit_female <- glm(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female, family = "binomial")
+p_hat_logit_female<-predict(glm_fit_female, newdata=test_set_female, type="response")
+y_hat_logit_female <- factor(ifelse(p_hat_logit_female > 0.5, 1, 0))
+confusionMatrix(as.factor(y_hat_logit_female), reference = test_set_female$timebinary,positive="1")
+```
+```{r}
+# Model2: Naive Bayes
+# accuracy = 0.3636, sensitivity = 0.4545, specificity = 0.2727  
+nb_fit_female <- naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female)
+p_hat_nb_female<-predict(nb_fit, newdata=test_set_female, type="raw")[,2]
+y_hat_nb_female<-factor(ifelse(p_hat_nb_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_nb_female),reference=test_set_female$timebinary,positive="1")
+```
+
+```{r}
+# Model3: knn
+# For the value of k, I chose the number closest to the squared root of the sample size of the training set, which was 7.
+# accuracy = 0.7273, sensitivity = 0.6364, specificity = 0.8182
+knn_fit_female<-knn3(timebinary ~ case_pp + continent + age  + gdp2020 + prior_attend, data = train_set_female, k=7)
+p_hat_knn_female<-predict(knn_fit_female,newdata=test_set_female)[,2]
+y_hat_knn_female<-factor(ifelse(p_hat_knn_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_knn_female),reference=test_set_female$timebinary,positive="1")
+```
+
+
+```{r}
+# Model4: QDA  
+# accuracy = 0.4091 , sensitivity = 0.4545, specificity = 0.3636
+set.seed(1)
+qda_fit_female <- qda(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female)
+p_hat_qda_female <- predict(qda_fit_female,newdata=test_set_female)$posterior[,2]
+y_hat_qda_female <- factor(ifelse(p_hat_qda_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_qda_female),reference=test_set_female$timebinary,positive="1")
+```
+
+```{r}
+# Model5: LDA
+# accuracy = 0.5455 , sensitivity = 0.7273, specificity = 0.3636
+set.seed(1)
+lda_fit_female <- lda(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female)
+p_hat_lda_female <- predict(lda_fit_female,newdata=test_set_female)$posterior[,2]
+y_hat_lda_female <- factor(ifelse(p_hat_lda_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_lda_female),reference=test_set_female$timebinary,positive="1")
+```
+
+```{r}
+# Model6: Decision trees
+# accuracy = 0.5909, sensitivity =  0.6364, specificity = 0.5455  
+set.seed(1)
+tree_fit_female <- rpart(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female)
+p_hat_tree_female <- predict(tree_fit_female,newdata=test_set_female)[,2]
+y_hat_tree_female <- factor(ifelse(p_hat_tree_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_tree_female),reference=test_set_female$timebinary,positive="1")
+```
+
+
+```{r}
+# plot ROC curve
+# Here, we compare ROC curves and AUC to see which model has a better discrimination.
+roc_logit_female<-roc(test_set_female$timebinary,p_hat_logit_female)
+roc_nb_female<-roc(test_set_female$timebinary,p_hat_nb_female)
+roc_knn_female<-roc(test_set_female$timebinary,p_hat_knn_female)
+roc_qda_female<-roc(test_set_female$timebinary,p_hat_qda_female)
+roc_lda_female<-roc(test_set_female$timebinary,p_hat_lda_female)
+roc_tree_female<-roc(test_set_female$timebinary,p_hat_tree_female)
+ggroc(list("Logistic regression"=roc_logit_female,"Naive Bayes"=roc_nb_female,"kNN, k=7"=roc_knn_female, "QDA model"=roc_qda_female, "LDA model"=roc_lda_female, "Decision Tree"=roc_tree_female))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves") +
+  xlab("Specificity")+
+  ylab("Sensitivity")+ 
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Decision Trees is the best model in terms of AUC in women.
+auc(roc_logit_female)
+auc(roc_nb_female)
+auc(roc_knn_female)
+auc(roc_qda_female)
+auc(roc_lda_female)
+auc(roc_tree_female)
+```
+
+```{r}
+#Table for women's models
+Women_models <- c("Logistic", "Naive Bayes", "kNN, k=7", "QDA", "LDA", "Trees")
+Accuracy <- c("0.5909", "0.3636", "0.7273", "0.4091", "0.5455", "0.5909")
+Sensitivity <- c("0.7273", "0.4545", "0.6364", "0.4545", "0.7273", "0.6364")
+Specificity <- c("0.4545", "0.2727", "0.8182", "0.3636", "0.3636", "0.5455")
+PPV <- c("0.5714", "0.3846", "0.7778", "0.4167", "0.5333", "0.5833")
+NPV <- c("0.6250", "0.3333", "0.6923", "0.4000", "0.5714", "0.6000")
+AUC <- c("0.5868", "0.7107", "0.8017", "0.5868", "0.5702", "0.5826")
+female_df <- data.frame(Women_models, Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+
+female_df2 <- head(female_df)
+knitr::kable(female_df2, col.names = gsub("[.]", " ", names(female_df)), caption = "Table 2: Model comparison for female athletes")
+```
+
+##### (Summary) According to the outputs, knn model showed the highest accuracy and the highest AUC (i.e., best discrimination). Then, knn model could be the best model to predict male thletes’ performance in the future Olympic Games during a similar pandemic. However, as the current dataset included very small number of samples, we should ideally repeat similar analyses by using bootstrapping methods or other datasets with larger sample size of athletes and compare the models.
+
