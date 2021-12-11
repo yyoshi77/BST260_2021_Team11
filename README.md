@@ -9,7 +9,7 @@
 The emergence of COVID-19 has impacted all over the world. The Olympics, Tokyo 2020, is not an exception. The objective of this project is to see differences in records for marathon games between pre- and post-pandemic periods. 
 
 ## About this GitHub
-The members contributed to their own sections. You can find a compiled .Rmd/html file named "1_Project_Summary" that includes all the sections. You can also find separated files whose names start with "2-1_", which include the work of the individual members and can work stand-alone. 
+The members contributed to their own sections. You can find a compiled .Rmd/html file named "1_Project_Summary" that includes all the sections. You can also find separated files whose names start with "2-X", which include the work of the individual members and can work stand-alone. 
 
 ## Data sources: 
 [1] Men at Tokyo 2020: https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Men%27s_marathon
