@@ -2,6 +2,7 @@
 title: "COVID-19 Pandemic and Olympics Marathon Performance - A Case Study Using Rio 2016 and Tokyo 2020 Data -"
 author: "BST260 Group 11: Mariko Ando, Yi-Ting Tsai, Satoko Ugai, Marie Wu, Yusuke Yoshikawa, Yuki Zhong"
 output: html_document
+runtime: shiny
 ---
 
 ## 0. Overview (BST260 Group 11 Members)
@@ -1038,6 +1039,19 @@ mappie_2
 ```
 
 On this COVID-19 heatmap, countries represented by top 20 female marathon finishers are represented by a shade of orange, graded from light to dark, to reflect each country's severity of COVID-19 at the beginning of July 2021. Severity is calculated by the 7-day average of COVID-19 cases on July 1st, 2021. The green dots are the top 20 female finishers at the 2016 games; the blue dots are the top 20 female finishers at the 2020 games; the size of the dots reflect the numbers of athletes who qualified in the top 20. This graph allows us to see the change in top 20 finishers and their represented countries across 2016 and 2020 on a COVID-19 heatmap.
+
+
+### Findings and Discussion
+
+Despite a lower athlete attendance in the 2020 games, the 25th quartile, median, and 75th quartile marathon finishing times, in both men and women, all improved in 2020, when compared to 2016. 
+
+From the graphs we plotted, we did not see a strong relationship between COVID-19 severity and athletes' marathon finishing time. We are aware that the methods we use to define COVID-19 severity and variations in case-compiling methods in different countries could lead to different results. 
+
+Yet, to our surprise, the scatterplots showed that the GDP of the countries athletes represent were differently distributed across 2016 and 2020 in both men and women. GDPs of the countries athletes represent were higher in 2020 among both the overall attending athletes and those who qualified the upper half, suggesting GPD could be a crucial factor in determining athlete's performance during the pandemic. 
+
+It is possible that higher-income countries were more capable of supporting marathon athletes to attend international competitions during the pandemic, such as the Tokyo Olympic games, regardless of domestic COVID-19 severity.
+
+
 
 
 
