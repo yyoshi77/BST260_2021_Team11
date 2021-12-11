@@ -1,13 +1,13 @@
 ---
-title: "Scraping Part"
-author: "Yusuke Yoshikawa (BST260 Group11)"
+title: "Scraping Section"
+author: "Yusuke Yoshikawa (BST260 Group 11)"
 output: html_document
 ---
 
 
-## Data Collection Part
+## Data Collection Section
 
-### Brief sumamry of scraping
+### Brief summary of scraping
 First, I collected the tables of marathon records at 4 Olympic marathon game. I further scraped the dates of birth of all athletes by accessing their individual pages. Scraping process was similar across the 4 games, so please see the descriptions at Men Tokyo2020 scraping for data collection of the Olympic games. Then, I combined the 4 datasets into one dataframe. Second, I collected data regarding lockdown policy, COVID-19 cases, populations, financial and geographic data of area/countries which athletes are from. Finally, I saved the dataset as a csv file for subsequent analyses by other members. There are explanations of the columns at the end of this section.
 
 ```{r, message=FALSE, warning=FALSE}
