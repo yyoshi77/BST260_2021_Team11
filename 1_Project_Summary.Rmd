@@ -1,10 +1,10 @@
 ---
 title: "COVID-19 Pandemic and Olympics Marathon Performance - A Case Study Using Rio 2016 and Tokyo 2020 Data -"
-author: "BST260 Group11: Mariko Ando, Yi-Ting Tsai, Satoko Ugai, Marie Wu, Yusuke Yoshikawa, Yuki Zhong"
+author: "BST260 Group 11: Mariko Ando, Yi-Ting Tsai, Satoko Ugai, Marie Wu, Yusuke Yoshikawa, Yuki Zhong"
 output: html_document
 ---
 
-## 0. Overview (BST260 Group11 Members)
+## 0. Overview (BST260 Group 11 Members)
 ### BACKGROUND
 
 COVID-19 has impacted the world over, without sparing a single individual or country. It has been pointed out in the literature that the COVID-19 pandemic impacted not only those infected by COVID-19, but also the healthy population. Previous questionnaire surveys have reported that obesity, depression, and anxiety increased in healthy people during COVID-19 pandemic (1). Regional or nation-wide lockdowns and modification of work mode have resulted in decreased levels of physical activity in the healthy population. Since physical exercise is significantly associated with mental health and obesity, lack of exercise can lead to higher chances of developing obesity and depression. 
@@ -23,7 +23,7 @@ The primary scientific goal of our project is to see whether there was any diffe
 
 ## 1. Data Collection Part (Yusuke Yoshikawa)
 
-### Brief sumamry of scraping
+### Brief summary of scraping
 First, I collected the tables of marathon records at 4 Olympic marathon game. I further scraped the dates of birth of all athletes by accessing their individual pages. Scraping process was similar across the 4 games, so please see the descriptions at Men Tokyo2020 scraping for data collection of the Olympic games. Then, I combined the 4 datasets into one dataframe. Second, I collected data regarding lockdown policy, COVID-19 cases, populations, financial and geographic data of area/countries which athletes are from. Finally, I saved the dataset as a csv file for subsequent analyses by other members. There are explanations of the columns at the end of this section.
 
 ```{r, message=FALSE, warning=FALSE}
