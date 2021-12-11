@@ -1,0 +1,2011 @@
+---
+title: "COVID-19 Pandemic and Olympics Marathon Performance - A Case Study Using Rio 2016 and Tokyo 2020 Data -"
+author: "BST260 Group 11: Mariko Ando, Yi-Ting Tsai, Satoko Ugai, Marie Wu, Yusuke Yoshikawa, Yuki Zhong"
+output: html_document
+---
+
+## 0. Overview (BST260 Group 11 Members)
+### BACKGROUND
+
+COVID-19 has impacted the world over, without sparing a single individual or country. It has been pointed out in the literature that the COVID-19 pandemic impacted not only those infected by COVID-19, but also the healthy population. Previous questionnaire surveys have reported that obesity, depression, and anxiety increased in healthy people during COVID-19 pandemic (1). Regional or nation-wide lockdowns and modification of work mode have resulted in decreased levels of physical activity in the healthy population. Since physical exercise is significantly associated with mental health and obesity, lack of exercise can lead to higher chances of developing obesity and depression. 
+
+   Meanwhile, on the national or international level, concerns of viral transmission have caused the cancellation or postponement of various events, such as the 2020 Tokyo Summer Olympics. Originally planned to be held in the summer of 2020, these Olympic games were postponed indefinitely in March 2020. Athletes faced interrupted training routines, as many countries implemented restrictive lockdowns and shut down gyms and athlete training centers. Some athletes reportedly contracted the virus or were even hospitalized. It arouses our interest to explore the association between the pandemic and athlete performance.
+
+### OBJECTIVE
+
+The primary scientific goal of our project is to see whether there was any difference in records for marathon games between pre- and post-pandemic periods. Our secondary scientific goal is to investigate whether countries with or without lockdown policies showed different trends for a change in records between pre- and post-pandemic periods. By doing these analyses, we can evaluate the association between the pre-/post-pandemic status and each record, possibly contributing to revealing the potential impacts of the pandemic on athletes’ preparedness for the Olympic games. Specifically, during our analysis, we will create graphs by using records in 2016 and 2020 Olympic Games and compare several models for the association between  the pre-/post-pandemic status versus changes in marathon records.
+
+   Throughout these processes, we can learn a way of creating nicely visualized graphs and building/comparing different models by using R. The benefits in the current project include future indications for additional support for athletes during the pandemic, especially for the athletes who cannot practice sufficiently due to pandemic-related difficulties. To assess the pandemic’s impacts in detail, we will account for not only pre-/post-pandemic status but also the existence of lockdown policies in each country as additional features.
+
+
+
+
+
+## 1. Data Collection Part (Yusuke Yoshikawa)
+
+### Brief summary of scraping
+First, I collected the tables of marathon records at 4 Olympic marathon game. I further scraped the dates of birth of all athletes by accessing their individual pages. Scraping process was similar across the 4 games, so please see the descriptions at Men Tokyo2020 scraping for data collection of the Olympic games. Then, I combined the 4 datasets into one dataframe. Second, I collected data regarding lockdown policy, COVID-19 cases, populations, financial and geographic data of area/countries which athletes are from. Finally, I saved the dataset as a csv file for subsequent analyses by other members. There are explanations of the columns at the end of this section.
+
+```{r, message=FALSE, warning=FALSE}
+#### Libraries ####
+library(tidyverse)
+library(rvest)
+library(lubridate)
+#if (!require(RCurl)) {install.packages("RCurl", dependencies=TRUE)}
+#library(RCurl)
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Men at Tokyo 2020 ####
+# URL of Men at Tokyo2020
+url_20m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Men%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_20m) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_20m <- tab[[8]] %>% 
+  html_table() 
+
+# Data reshaping
+colnames(dat_20m)[1:4] <- c("rank", "athlete", "country", "time")
+dat_20m$rank[1:3] <- c(1:3)
+dat_20m <- dat_20m %>% 
+  mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  # sb = season best including "national record" and "personal best"
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  # dnf = did not finish including "did not start" and "disqualified"
+  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = lubridate::hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+# Age data collection
+urls <- read_html(url_20m) %>% 
+  html_nodes("table") %>% 
+  .[[8]] %>% 
+  # extract all wiki URLs
+  html_nodes("a[href *= '/wiki/' ]") %>% 
+  html_attr("href") %>% 
+  # extracted only URLs including althlete's personal pages
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  # save the URLs as character vectors
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text function
+text_detect <- function(url){
+  read_html(url) %>% 
+    html_nodes("body") %>% 
+    .[[1]] %>% 
+    html_text()
+}
+# Application the function to all athletes at the Olympic game
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detecting function by string processing
+dob_detect <- function(string){
+  string %>% str_extract(
+  "(born \\d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December).\\d{4})|(born (January|February|March|April|May|June|July|August|September|October|November|December) \\d{1,2}. \\d{4})"
+  )
+}
+# Application the function to all athletes at the Olympic game
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dat_20m$dob <- dobs
+
+# Calculate age at the Olympic game
+if (!require(eeptools)) {install.packages("eeptools", dependencies=TRUE)}
+library(eeptools)
+dat_20m <- dat_20m %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2021-08-08"), units = "years") %>% floor)
+
+# Add sex category 
+dat_20m$sex <- "Men"
+# Add game label
+dat_20m$olympic <- "Tokyo2020"
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Women at Tokyo 2020 ####
+# URL of Women at Tokyo 2020
+url_20w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2020_Summer_Olympics_%E2%80%93_Women%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_20w) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_20w <- tab[[8]] %>% 
+  html_table()
+
+# Data reshaping
+colnames(dat_20w)[1:4] <- c("rank", "athlete", "country", "time")
+dat_20w$rank[1:3] <- c(1:3)
+dat_20w <- dat_20w %>% 
+  mutate(rank = ifelse(rank=="–", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = lubridate::hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+# Age data collection
+urls <- read_html(url_20w) %>% 
+  html_nodes("table") %>% 
+  .[[8]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text by the function above
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection by string processing
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dat_20w$dob <- dobs
+
+# Calculate age at Tokyo 2020
+dat_20w <- dat_20w %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2021-08-07"), units = "years") %>% floor)
+
+# Sex category 
+dat_20w$sex <- "Women"
+# Game label
+dat_20w$olympic <- "Tokyo2020"
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Men at Rio 2016 ####
+# URL of Men at Rio 2016
+url_16m <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Men%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_16m) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_16m <- tab[[6]] %>% 
+  html_table() 
+
+# Data reshaping
+colnames(dat_16m)[1:4] <- c("rank", "athlete", "country", "time")
+dat_16m$rank[1:3] <- c(1:3)
+dat_16m <- dat_16m %>% 
+  mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(time=="DNF" | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = ifelse(dnf==1, NA, time)) %>% 
+  mutate(time = lubridate::hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+# Age data collection
+urls <- read_html(url_16m) %>% 
+  html_nodes("table") %>% 
+  .[[6]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection by string processing
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dat_16m$dob <- dobs
+
+# Calculate age at Rio 2016
+dat_16m <- dat_16m %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2016-08-21"), units = "years") %>% floor)
+
+# Sex category 
+dat_16m$sex <- "Men"
+# Game label
+dat_16m$olympic <- "Rio2016"
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Women at Rio 2016 ####
+# URL of Women at Rio 2016
+url_16w <- "https://en.wikipedia.org/wiki/Athletics_at_the_2016_Summer_Olympics_%E2%80%93_Women%27s_marathon"
+
+# Extract all tables in the page
+tab <- read_html(url_16w) %>% 
+  html_nodes("table") 
+# Table of interest
+dat_16w <- tab[[6]] %>% 
+  html_table() 
+
+# Data reshaping
+colnames(dat_16w)[1:4] <- c("rank", "athlete", "country", "time")
+dat_16w$rank[1:3] <- c(1:3)
+dat_16w <- dat_16w %>% 
+  mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
+  mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
+  mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
+  mutate(dnf = ifelse(time=="DNF" | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(time = ifelse(dnf==1, NA, time)) %>% 
+  mutate(time = lubridate::hms(time)) %>% 
+  select(rank, athlete, country, time, sb, dnf)
+
+# Age data collection
+urls <- read_html(url_16w) %>% 
+  html_nodes("table") %>% 
+  .[[6]] %>% 
+  html_nodes("a[href *= '/wiki/' ]") %>% # extract the individual athletes' wikis
+  html_attr("href") %>% 
+  .[!str_detect(.,"Olympics") & !str_detect(., "Bests") & !str_detect(., "conditions") & !str_detect(., "records")] %>%
+  paste("https://en.wikipedia.org", ., sep="")
+
+# Extraction of Wiki text
+wiki_text <- sapply(urls, text_detect)
+
+# DOB detection by string processing
+dobs <- sapply(wiki_text, dob_detect) %>% 
+  as.character() %>% 
+  str_replace("born ", "")
+dobs_d <- dobs %>% str_extract("\\d{1,2}")
+dobs_m <- dobs %>% str_extract("(January|February|March|April|May|June|July|August|September|October|November|December)")
+dobs_y <- dobs %>% str_extract("\\d{4}")
+dobs <- paste(dobs_y, dobs_m, dobs_d, sep="-") %>% ymd()
+dobs[128] <- "1980-10-12" %>% ymd()   # missing data (source: https://en.wikipedia.org/wiki/Graciete_Santana)
+dat_16w$dob <- dobs
+
+# Calculate age at Rio 2016
+dat_16w <- dat_16w %>% 
+  mutate(age = eeptools::age_calc(dob, ymd("2016-08-14"), units = "years") %>% floor)
+
+# Sex category 
+dat_16w$sex <- "Women"
+# Game label
+dat_16w$olympic <- "Rio2016"
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Combine the 4 dataframes ####
+dat <- rbind(dat_20m, dat_20w, dat_16m, dat_16w)
+
+#### Rename the areas/countries ####
+dat <- dat %>% 
+  mutate(country = ifelse(country=="Chinese Taipei", "Taiwan", country)) %>% 
+  mutate(country = ifelse(country=="Democratic Republic of the Congo", "Congo (Kinshasa)", country))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Lockdown area/countries ####
+# Source: https://en.m.wikipedia.org/wiki/COVID-19_lockdowns
+non_lockdown <- c("Burundi", "Iceland", "Japan", "Nicaragua",
+                  "South Korea", "Sweden", "Taiwan", "Tanzania", "Uruguay")
+dat <- dat %>% 
+  mutate(lockdown = ifelse(country %in% non_lockdown, 0, 1))
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Attendance before Tokyo2020 ####
+prior_attend <- dat %>% 
+  group_by(athlete) %>% 
+  filter(n()>1) %>% 
+  pull(athlete)
+dat <- dat %>% 
+  mutate(prior_attend = ifelse(olympic=="Tokyo2020" & athlete %in% prior_attend, 1, 0))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### COVID-19 cases as of July 22, 2021 ####
+# COVID-19 cases collected from [Github](https://github.com/CSSEGISandData/COVID-19).
+#url <- getURL("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+
+url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
+jhu <- read_csv(url) %>%
+  # cases are cumulated so that I kept only "7/22/21", which is the start date of Tokyo2020
+  dplyr::select(`Province/State`, `Country/Region`, `7/22/21`) %>% 
+  # keep the resion to be consistent with other data
+  mutate(`Country/Region2` = ifelse(is.na(`Province/State`), `Country/Region`,
+                                    ifelse(`Province/State`=="Hong Kong", "Hong Kong",
+                                           `Country/Region`))) %>% 
+  group_by(`Country/Region2`) %>% 
+  summarise(case_total = sum(`7/22/21`), .groups="drop") %>% 
+  rename(country = `Country/Region2`) %>% 
+  dplyr::select(country, case_total)
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Population and GDP ####
+
+## Population ##
+# Read in Johns Hopkins UID lookup table
+# Source: https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv
+url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"
+pop <- read_csv(url)
+
+## GDP data ##
+# Read in GDP data on WORLD BANK
+# Source: https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv
+url <- "https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv"
+gdp <- read_csv("API_NY.GDP.MKTP.CD_DS2_en_csv_v2_3263806.csv")
+
+# Join the population and the GDP data
+temp <- left_join(pop %>% subset(is.na(Province_State)), 
+                  gdp %>% 
+                    rename(iso3 = `Country Code`,
+                           gdp2016 = `2016`,
+                           gdp2017 = `2017`,
+                           gdp2018 = `2018`,
+                           gdp2019 = `2019`,
+                           gdp2020 = `2020`) %>% 
+                    dplyr::select(iso3, `Country Name`, gdp2016:gdp2020),
+                  by = "iso3") # combine the dataframes according to isco3
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Combine the jhu data + (population + GDP)
+jhu <- left_join(jhu, 
+                 temp %>% rename(country = Country_Region), 
+                 # join the dataframes by consistent country names
+                 by="country") 
+
+jhu <- jhu %>% 
+  # calculate COVID-19 case per population
+  mutate(case_pp = case_total/Population) %>% 
+  # select only area/country names, case per population and GDP data
+  dplyr::select(country, case_pp, gdp2016:gdp2020)
+
+# Reclassify discrepant area/country names
+jhu <- jhu %>% 
+  mutate(country = ifelse(country %in% dat$country, country, 
+                          case_when(country == "Taiwan*" ~ "Taiwan",
+                                    country == "Czechia" ~ "Czech Republic",
+                                    country == "Democratic Republic of the Congo" ~ "Congo",
+                                    country == "United Kingdom" ~ "Great Britain",
+                                    country == "Korea, South" ~ "South Korea",
+                                    country == "US" ~ "United States")))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### join the datasets: dat+(jhu+pop+gdp) ####
+# No data on cases: North Korea, Palestine, Pueruto Rico, Refugee Olympic Team
+dat <- left_join(dat, jhu, by="country")
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Continent ####
+# URL of continent category
+url <- "https://www.newworldencyclopedia.org/entry/list_of_countries_by_continent"
+
+# Extract all tables in the page
+tab <- read_html(url) %>% 
+  html_nodes("table") 
+# Africa
+africa <- tab[[1]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+africa <- paste0(africa[,1], africa[,2], "South Sudan") # add discrepant country name
+# Asia
+asia <- tab[[2]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+asia <- paste0(asia[,1], asia[,2], "Taiwan") # add discrepant country name
+# Europe
+europe <- tab[[3]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+europe <- paste0(europe[,1], europe[,2], "Great Britain") # add discrepant country name
+# North America
+n_america <- tab[[4]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+n_america <- paste0(n_america[,1], n_america[,2])
+# South America
+s_america <- tab[[5]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+s_america <- paste0(s_america[,1], s_america[,2])
+# Oceania
+oceania <- tab[[6]] %>% 
+  html_table() %>% 
+  .[,c(1,3)]
+oceania <- paste0(oceania[,1], oceania[,2])
+
+# add "continent" column according to the continent categories obtained above
+dat <- dat %>% 
+  mutate(continent = case_when(str_detect(africa, country) ~ "Africa",
+                               country=="Congo (Kinshasa)" ~ "Africa", # add discrepant country name
+                               str_detect(asia, country) ~ "Asia",
+                               str_detect(europe, country) ~ "Europe",
+                               str_detect(n_america, country) ~ "North America",
+                               str_detect(s_america, country) ~ "South America",
+                               str_detect(oceania, country) ~ "Oceania"))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+#### Final data set ####
+# time conversion into seconds for analyses
+dat <- dat %>% 
+  mutate(time_sec = period_to_seconds(time)) %>% 
+  select(rank:time, time_sec, sb:last_col())
+
+## Saving the dataframe
+write_csv(dat, "data.csv")
+#saveRDS(dat, "data.RData")
+
+## Cleaning the environment
+rm(list = ls()[!ls()=="dat"])
+
+## Data
+dat %>% slice(1:8) %>% knitr::kable()
+```
+
+#### Data information
+- `rank`: rank at each Olympic game
+- `athlete`: athlete names
+- `country`: area or country from which the athlete is
+- `time`: records at each Olympic game
+- `time_sec`: records at each Olympic game in seconds
+- `sb`: season best of the athlete; including national record and personal pest
+- `dnf`: did not finish; including did not start and disqualified
+- `dob`: date of birth
+- `age`: age (years) at the time of each Olympic game
+- `sex`: sex category
+- `olympic`: Olympic game name
+- `case_pp`: total case per population of the athlete country as of July 22, 2021 (Start date of Tokyo 2020)
+- `gdp2016:2020`: GDP from 2016 to 2020
+- `continent`: continent from which the athlete is
+- `lockdown`: yes if the country from which the athletes is implemented lockdown
+- `prior_attend`: Attendance before Tokyo (athletes at Rio 2016 are all "no")
+
+
+
+
+
+
+
+## 2. Visualization to Explore the Impact of the COVID-19 Pandemic on Olympic Marathon Performances (Marie Wu)
+
+After we defined our variables and completed our data collection in marathon results at the Rio 2016 and Tokyo 2020 games, we further explored the basic composition of our data. In addition, we also explored how athletes' marathon finishing times were similar or different in distribution across 2016 and 2020, as well as the impact of the COVID-19 pandemic on finishing times.
+
+The results of attendance by gender and by continent across 2016 and 2020 are shown in Graph 1 and Graph 2, respectively. The distributions of finishing times at the Rio and Tokyo games for both genders are shown in Graph 3 and Graph 4. 
+
+The marathon results at the Rio and Tokyo games for both genders were compared by continent in Graph 5 and Graph 6. Graph 7A and 7B show the scatterplots for eyeballing men's marathon results versus GDP across 2016 and 2020; likewise, Graph 8A and 8B show the scatterplots for eyeballing women's marathon results versus GDP across 2016 and 2020. In Graphs 9 and 10, we explored the relationship between top finishing athletes and COVID-19 severity within the countries they represent via scatterplots and bar charts.
+
+Graphs 11 and 12 allow us to view the countries from which the top 20 marathon athletes in both genders originate on COVID-19 heatmaps across 2016 and 2020.
+
+```{r message=FALSE, warning=FALSE}
+load("data.RData")
+library(dplyr)
+library(tidyverse)
+library(gridExtra)
+library(dslabs)
+library(ggplot2)
+library(ggthemes)
+library(scales)
+library(lubridate)
+library(ggpubr)
+
+#Naming df by 2016 2020 Men Female
+data(dat)
+dat_16m <- dat %>% filter(olympic == "Rio2016", sex=="Men")
+dat_16f <- dat %>% filter(olympic == "Rio2016", sex=="Women")
+dat_20m <- dat %>% filter(olympic == "Tokyo2020", sex=="Men")
+dat_20f <- dat %>% filter(olympic == "Tokyo2020", sex=="Women")
+dat_Male<- dat %>% filter(sex=="Men")
+dat_Female<- dat %>% filter(sex=="Women")
+```
+
+### Graph 1. Bar Chart - Athlete Attendance by Gender, 2016 vs. 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 1. Bar Chart - Athlete Attendance by Gender, 2016 vs. 2020
+
+dat %>% ggplot(aes(x =  sex, fill= olympic)) +
+  geom_bar(position = position_dodge2(), aes(group = olympic)) + 
+  xlab(" ")+ 
+  ylab("Attendance") + 
+  ggtitle("Athlete Attendance by Gender, 2016 vs. 2020") +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge2(width = .9), size = 2.5)
+```
+
+From this bar chart, we can see that when comparing the Tokyo 2020 Olympics to the Rio 2016 Olympics, athlete attendance for the marathon in Tokyo 2020 decreased in total number and across both genders. 
+
+In the Rio games, athlete attendance was 155 for men, and 157 for women. In the Tokyo games, athlete attendance was 106 for men, and 88 for women. The overall decrease was 118 persons, and 49 for men and 69 for women.
+
+We further explored whether the decrease in athlete attendance was different by continent. 
+
+This graph does not include Refugee Olympic Team.
+
+
+### Graph 2. Bar Chart - Athlete Attendance by Continent, 2016 vs. 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 2.  Bar Chart - Athlete Attendance by Continent, 2016 vs. 2020
+
+dat %>% filter(!is.na(continent))%>%
+  ggplot(aes(x = continent, fill= olympic)) +
+  geom_bar(position = position_dodge2(), aes(group = olympic)) +
+  xlab(" ")+ 
+  ylab("Attendance") + 
+  ggtitle("Athlete Attendance by Continent, 2016 vs. 2020") +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge2(width = .9), size = 2.5)
+```
+
+From this bar chart, we can see that for most continents, including Africa, Asia, Europe, and South Africa, athlete attendance in Tokyo decreased by 17 - 35 persons compared to Rio, there was no change in attendance for North America, and a slight increase for Oceania. 
+
+Graph does not include athletes from the Refugee Olympic Team.
+
+
+### Graph 3. Histogram with and Boxplot - Men's Marathon Results, Rio 2016 vs. Tokyo 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 3. Histogram with and Boxplot - Men's Marathon Results, Rio 2016 vs. Tokyo 2020
+
+#a Scatter plot + Box plot
+ps_Male <- dat_Male %>% filter(!is.na(continent))%>%
+  ggplot(aes(olympic, time)) + 
+  geom_boxplot(coef=3, color = "black") + 
+  scale_y_time()+
+  geom_jitter(width = 0.1, alpha = 0.2, color = "coral") +
+  ylab("Finishing Time") + xlab(" ") 
+
+ps_Female <- dat_Female %>% filter(!is.na(continent))%>%
+  ggplot(aes(olympic, time)) + 
+  geom_boxplot(coef=3, color = "black") + 
+  geom_jitter(width = 0.1, alpha = 0.2, color = "#00AFBB") +
+  scale_y_time()+
+  ylab("Finishing Time") + xlab(" ")
+
+#b Histogram
+ph_Male <- dat_Male  %>% filter(!is.na(continent)) %>%
+  ggplot(aes(time, ..density..)) +
+  geom_histogram(binwidth = 70, color = "black") +
+  scale_x_time()+
+  facet_grid(olympic~., scales = "fixed") + 
+  xlab(" ")
+
+ph_Female <- dat_Female %>% filter(!is.na(continent)) %>%
+  ggplot(aes(time, ..density..)) +
+  geom_histogram(binwidth = 70, color="black") +
+  scale_x_time()+
+  facet_grid(olympic~., scales = "fixed")+ 
+  xlab(" ")
+
+#c Combined grid
+SBH_male <- grid.arrange(ps_Male, ph_Male, ncol = 2, top = "Men's Marathon Results, Rio 2016 vs. Tokyo 2020" )
+
+```
+
+On the left of the graph, we can see that the y-axis of the box plot is represented by marathon finishing time. The lower the finishing time, the better the rank. The 25th quartile, median, and 75th quartile finishing times all improved.
+
+On the right, the stacked histograms show the frequency distribution of athlete finishing time.  
+
+
+### Graph 4. Histogram with and Boxplot - Women's Marathon Results, Rio 2016 vs. Tokyo 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 4. Histogram with and Boxplot - Women's Marathon Results, Rio 2016 vs. Tokyo 2020
+
+SBH_female <- grid.arrange(ps_Female, ph_Female, ncol = 2, top = "Women's Marathon Results, Rio 2016 vs. Tokyo 2020" )
+
+```
+
+On the left of the graph, we can see that the y-axis of the box plot is represented by marathon finishing time. The lower the finishing time, the better the rank. The 25th quartile, median, and 75th quartile finishing times all improved.
+
+On the right, the stacked histograms show the frequency distribution of athlete finishing time. 
+
+
+### Graph 5. Box Plot - Men's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 5. Box Plot - Men's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020
+
+dat_16m_pc <- dat_16m %>% select(country, time, olympic, gdp2016, continent, case_pp) %>% rename(`gdp`=`gdp2016`)
+dat_20m_pc <- dat_20m %>% select(country, time, olympic, gdp2020, continent, case_pp) %>% rename(`gdp`=`gdp2020`)  
+
+male_join <- full_join(dat_16m_pc, dat_20m_pc)
+
+dat_gdp_male <- male_join %>% filter(!is.na(continent)) %>%
+  ggplot(aes(continent, time, fill = olympic)) +
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_time(breaks = seq(6000,12000,1200)) + 
+  ylab("Finishing Time") + xlab(" ")+ 
+  ggtitle("Men's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020 ")
+dat_gdp_male 
+```
+
+From this box plot, we can see that, for athletes from Africa, Asia, Europe, and South America, men's 25th quartile, median, and 75th quartile finishing times improved in Tokyo 2020 relative to Rio 2016. 
+
+Conversely, for athletes from both North America and Oceania, median finishing times regressed.
+
+
+### Graph 6. Box Plot - Women's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020
+
+
+```{r message=FALSE, warning=FALSE}
+# Graph 6. Box Plot - Women's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020
+dat_16f_pc <- dat_16f %>% select(country, time, olympic, gdp2016, continent, case_pp) %>% rename(`gdp`=`gdp2016`)
+dat_20f_pc <- dat_20f %>% select(country, time, olympic, gdp2020, continent, case_pp) %>% rename(`gdp`=`gdp2020`)  
+
+female_join <- full_join(dat_16f_pc, dat_20f_pc)
+
+dat_gdp_female <- female_join %>% filter(!is.na(continent)) %>%
+  ggplot(aes(continent, time, fill = olympic)) +
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_time(breaks = seq(6000,12000,1200)) + 
+  ylab("Finishing Time") + xlab(" ")+ 
+  ggtitle("Women's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020")
+
+dat_gdp_female
+
+```
+
+From this box plot, for athletes from Africa, Asia, Europe, and South America, women's finishing times improved in Tokyo 2020 compared to Rio 2016, similar to what was seen in the men's finishing times. In addition, times from North America improved. In Oceania, median finishing times regressed.
+
+
+### Graph 7. Scatterplots: Men's Marathon Results by GDP in 2016 and 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 7. Scatterplots: Men's Marathon Results by GDP in 2016 and 2020
+
+# 7.A Scatterplots: Men's Marathon Results by GDP in 2016
+p_16mgdp <- dat_16m %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(gdp2016/1000000000, time, col = continent)) + 
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=8448, color="blue" ) +
+  geom_hline("Top 10", yintercept=7951, color="coral") +
+  scale_x_continuous(trans = "log10", labels = comma) + 
+  scale_y_time()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("GDP for 2016 (billion USD)")+
+  ylab("Finishing Time") +
+  geom_label(aes(4,8447,label = "Upper Half" , vjust = -0.3), color="blue") +
+  geom_label(aes(3,7950,label ="Top 10" , vjust = -0.3), color="coral" ) +
+  ggtitle("Men's Marathon Results by GDP in 2016")
+```
+
+### Graph 7.A Men's Marathon Results by GDP in 2016
+```{r message=FALSE, warning=FALSE}
+p_16mgdp
+```
+
+```{r message=FALSE, warning=FALSE}
+# 7.B Scatterplots: Men's Marathon Results by GDP in 2020
+
+p_20mgdp <- dat_20m %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(gdp2016/1000000000, time, col = continent)) + 
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=8240, color="blue" ) +
+  geom_hline("Top 10", yintercept=7934, color="coral") +
+  scale_x_continuous(trans = "log10", labels = comma) + 
+  scale_y_time() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("GDP for 2020 (billion USD)")+
+  ylab("Finishing Time") +
+  geom_label(aes(5,8239,label = "Upper Half" , vjust = -0.3), color="blue") +
+  geom_label(aes(3,7933,label ="Top 10" , vjust = -0.3), color="coral" ) +
+  ggtitle("Men's Marathon Results by GDP in 2020")
+```
+
+### Graph 7.B Men's Marathon Results by GDP in 2020
+```{r message=FALSE, warning=FALSE}
+p_20mgdp
+```
+
+
+By eyeballing the above two scatterplots, let's explore the relationship between the GDPs of the countries where athletes originate and the finishing time. 
+
+Here, we plot the x-axis with the GDP of the country where athletes originate from and the y-axis with finishing time. Each point on the plot represents an athlete who finished.
+At the Rio Olympics, 155 male athletes attended the marathon, and 139 finished. Athletes who qualified in the upper half completed the race within 8447 seconds (2 hrs 20 mins 47 secs). Athletes who finished top 10 did so within 7949 seconds (2 hrs 12 mins 29 secs).
+
+At the Tokyo Olympics, 106 male athletes attended the marathon, and 76 finished. Athletes who qualified in the upper half completed their race within 8239 seconds (2 hrs 17 mins 19 secs). Athletes who finished top 10 did so within 7933 seconds (2 hrs 12 mins 13 secs).
+
+Since the athletes who attended the Rio and Tokyo games were mostly different, and considering inflation may have affected GDP between 2016 and 2020, we used separate scatterplots to explore the differences or similarities of the two plots. By comparing 2016 and 2020 men's scatterplots, we can see that the distribution in 2016 is more evenly spread along the x-axis than in 2020. GDPs of the countries where athletes originated from were higher in 2020 among both the overall male marathon athlete population and those who qualified the upper half.
+
+
+### Graph 8. Scatterplots: Women's Marathon Results by GDP in 2016 and 2020
+
+```{r message=FALSE, warning=FALSE}
+## Graph 8. Scatterplots: Women's Marathon Results by GDP in 2016 and 2020
+
+# 8.A Scatterplots: Women's Marathon Results by GDP in 2016 
+
+p_16fgdp <- dat_16f %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(gdp2016/1000000000, time, col = continent)) + 
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=9749, color="blue" ) +
+  geom_hline("Top 10", yintercept=8917, color="coral") +
+  scale_x_continuous(trans = "log10", labels = comma) + 
+  scale_y_time() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("GDP for 2016 (billion USD)")+
+  ylab("Finishing Time") +
+  geom_label(aes(7,9748,label = "Upper Half" , vjust = -0.3), color="blue") +
+  geom_label(aes(6,8916,label ="Top 10" , vjust = -0.3), color="coral" ) +
+  ggtitle("Women's Marathon Results by GDP in 2016")
+```
+
+### Graph 8.A Women's Marathon Results by GDP in 2016
+
+```{r message=FALSE, warning=FALSE}
+p_16fgdp
+```
+
+```{r message=FALSE, warning=FALSE}
+# 8.B Scatterplots: Women's Marathon Results by GDP in 2020
+
+p_20fgdp <- dat_20f %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(gdp2020/1000000000, time, col = continent)) + 
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=9339, color="blue" ) +
+  geom_hline("Top 10", yintercept=9074, color="coral") +
+  scale_x_continuous(trans = "log10", labels = comma) + 
+  scale_y_time() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("GDP for 2020 (billion USD)")+
+  ylab("Finishing Time") +
+  geom_label(aes(3,9340,label = "Upper Half" , vjust = -0.3), color="blue") +
+  geom_label(aes(3,9075,label ="Top 10" , vjust = -0.3), color="coral" ) +
+  ggtitle("Women's Marathon Results by GDP in 2020")
+```
+
+### Graph 8.B Women's Marathon Results by GDP in 2020
+
+```{r message=FALSE, warning=FALSE}
+p_20fgdp
+```
+
+From the above two scatterplots we can see there is a more even distribution of marathon athlete finishing time along the x-axis (GDP) in 2016. 
+
+At the Rio Olympics, 157 female athletes attended the marathon, and 133 finished. Athletes who qualified in the upper half completed the race within 9748 seconds (2 hrs 42 mins 28 secs). Athletes who finished top 10 did so within 8916 seconds (2 hrs 28 mins 36 secs).
+
+At the Tokyo Olympics, 88 female athletes attended the marathon, and 73 finished. Athletes who qualified in the upper half completed their race within 9339 seconds (2 hrs 35 mins 39 secs). Athletes who finished top 10 did so within 9074 seconds (2 hrs 31 mins 14 secs).
+
+Similarly, we used separate scatterplots to explore the differences or similarities of the two plots. By comparing 2016 and 2020 women's scatterplots, we can see that the distribution in 2016 is more evenly spread along the x-axis than in 2020. GDPs of the countries where athletes originated from were higher in 2020 among both the overall female marathon athlete population and those who qualified the upper half.
+
+
+
+
+### Graph 9. Men's and Women's Marathon Results by COVID-19 Cases Per Capita
+
+```{r message=FALSE, warning=FALSE}
+# Graph 9. Men's and Women's Marathon Results by COVID-19 Cases Per Capita
+
+p_20fcasepp <- dat_20f %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(case_pp, time, col = continent)) +
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=9340, color="blue") + 
+  geom_hline("Top 10", yintercept=9075, color="coral") +
+  scale_y_time() + 
+  xlab("Women")+
+  ylab("")+
+  geom_label(aes(0.14,9340,label = "Upper Half" , vjust = -0.3), color="blue" , size = 3) +
+  geom_label(aes(0.14,9075,label ="Top 10" , vjust = -0.3), color="coral" , size = 3) 
+ 
+p_20mcasepp <- dat_20m %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(case_pp, time, col = continent)) +
+  geom_point(alpha = 0.5)  + 
+  geom_hline("Upper Half", yintercept=8240, color="blue") + 
+  geom_hline("Top 10", yintercept=7934, color="coral")  +
+  scale_y_time() + 
+  xlab("Men")+
+  ylab("") +
+  geom_label(aes(0.14,8240,label = "Upper Half" , vjust = -0.3), color="blue", size = 3) +
+  geom_label(aes(0.14,7934,label ="Top 10" , vjust = -0.3), color="coral", size = 3 ) 
+
+arrangedplot <- ggarrange(p_20mcasepp, p_20fcasepp,common.legend = TRUE )
+annotate_figure(arrangedplot,
+               top = text_grob("Men's and Women's Marathon Results by COVID-19 Cases Per Capita", color = "black", size = 12),
+               left = text_grob("Finishing Time", rot = 90),
+               bottom = text_grob("COVID-19 Cases Per Capita", color = "black")) 
+
+```
+
+Here, the x-axis represents the total cumulative number of COVID-19 cases in countries of athlete origin divided by country population, from the beginning of the pandemic until July 22, 2021. The y-axis represents the marathon finishing time at the Tokyo 2020 games.
+
+Here, we can see from the scatterplots that, among those who were able to qualify in the upper half, there were M-shaped distributions for both genders, suggestive of the fact that athletes who finished in the upper half came from countries of both high and low COVID-19 cases per capita. 
+
+In women, among the top 10, more athletes came from countries with fewer COVID-19 cases per capita. In men, we do not see this trend. Yet, while viewing these scatterplots, we should keep in mind issues such as under-reporting of COVID-19 cases or variations in case-compiling methods in different countries.
+
+
+
+### Graph 10. Men's and Women's Upper Half Marathon Finishers by COVID-19 Cases Per Capita
+
+
+```{r message=FALSE, warning=FALSE}
+# Graph 10 Men's and Women's Upper Half Marathon Finishers by COVID-19 Cases Per Capita
+#Top half +severe 
+top_half_severity_m20 <- dat_20m %>% filter(!is.na(time)) %>% filter(!is.na(case_pp)) %>% 
+  mutate(top_half = ifelse(rank((time_sec))<=38, "Upper 50% Place","Lower 50% Place" )) %>% 
+  mutate(severe = ifelse(case_pp <= 0.0472, "Case Count Below Median", "Case Count Above Median"))  
+
+top_half_severity_f20 <- dat_20f %>% filter(!is.na(time) ) %>% 
+  mutate(top_half= ifelse(rank((time_sec))<=37, "Upper 50% Place" , "Lower 50% Place")) %>% 
+  mutate(severe= ifelse(case_pp <= 0.0472, "Case Count Below Median", "Case Count Above Median"))  
+
+#define top half severity
+top_half_severity <- dat%>% filter(rank((case_pp))<=253) %>% arrange(.,case_pp)
+#Use 0.0472 to -- case severity
+ 
+PP1 <- top_half_severity_m20 %>% 
+  ggplot(aes(x = as.factor(top_half), fill= as.factor(severe))) +
+  geom_bar(position = position_stack(), aes(group = as.factor(severe))) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5), size = 2.5) +
+  xlab("Men")+ 
+  ylab("") 
+
+PP1<- PP1 + guides(fill=guide_legend(title="COVID-19 Case Count Per Capita"))
+
+PP2 <- top_half_severity_f20 %>% ggplot(aes(x = as.factor(top_half), fill= as.factor(severe))) +
+  geom_bar(position = position_stack(), aes(group = as.factor(severe))) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5), size = 2.5) +
+  xlab("Women")+ 
+  ylab("") 
+
+P2<- PP2 + guides(fill=guide_legend(title="COVID-19 Case Count Per Capita"))
+
+arrange1<- ggarrange(PP1, PP2,  common.legend = TRUE, legend = "bottom") 
+annotate_figure(arrange1,
+               top = text_grob("Men's and Women's Upper Half Marathon Finishers by COVID-19 Cases Per Capita", color = "black", size = 13),
+               left = text_grob("Athlete Count", rot = 90)) 
+ 
+```
+
+Here, the x-axis represents the upper or lower 50% in places achieved by male and female athletes. The y-axis represents athlete counts. The colored bars represent the number of athletes from countries below or above the median COVID-19 case count per capita. The median COVID-19 case count per capita was defined by the median of the total cumulative number of COVID-19 cases in countries of athlete origin divided by country population, from the beginning of the pandemic until July 22, 2021, from all samples in the dataset.
+
+We can see that, in men, for both upper and lower half qualifiers, roughly equal numbers of athletes were from countries below and above the median cases per capita. 
+
+In women, however, more athletes who qualified in the upper half were from countries with a below-median case per capita.
+
+
+
+### Graph 11. Countries of Top 20 Male Finishers on COVID-19 Heatmap
+
+
+```{r message=FALSE, warning=FALSE}
+##Graph 11. Countries of Top 20 Male Finishers on COVID-19 Heatmap
+#Top 20 codes 
+top20_20m <- dat_20m %>% filter(rank((time_sec))<=20, !is.na(continent)) %>%  group_by(country) %>% arrange(.,country)%>% count() %>%  as.data.frame(top20_20m)
+
+top20_20m <-top20_20m  %>% mutate(
+  lat = c(50.503887,35.861660,4.570868,15.339000, 46.6487132, 31.046051, 41.87194, 36.204824, -0.023559, 31.791702, 52.132633, 40.463667, -6.369028, 37.09024), 
+  long=c(4.469936,104.195396,-74.297333, 38.937111, 2.6215658, 34.851612, 12.56738, 138.252924, 37.906193, -7.09262, 5.291266, -3.74922, 34.888822, -95.712891 ))
+
+top20_16m <- dat_16m %>% filter(rank((time_sec))<=20, !is.na(continent)) %>%  group_by(country) %>% arrange(.,country)%>% count() %>%  as.data.frame(top20_16m)
+
+top20_16m <-top20_16m  %>% mutate(
+  lat = c( -14.235004	,56.130366 , 11.825138 , -1.831239 , 15.179384, 9.145	, 		55.378051, 36.204824, -0.023559, 52.132633,60.472024, 46.818188, -6.369028, 38.963745, 	1.373333, 48.379433, 37.09024	), 
+  long=c( -51.92528	, -106.346771	, 42.590275 , -78.183406, 39.782334, 40.489673, -3.435973, 138.252924, 37.906193, 5.291266, 8.468946, 8.227512, 34.888822, 35.243322, 32.290275, 31.16558, -95.712891))
+
+top20_20f <- dat_20f %>% filter(rank((time_sec))<=20, !is.na(continent)) %>%  group_by(country) %>% arrange(.,country)%>% count() %>%  as.data.frame(top20_20f)
+
+top20_20f <-top20_20f  %>% mutate(
+  lat = c(-25.274398, 25.930414, 53.709807, 56.130366, 9.145, 51.165691, 36.204824, -0.023559	, -29.609988, -22.95764, 51.919438 , -30.559482	, 46.818188	, 1.373333 , 37.09024 ), 
+  long= c( 133.775136, 50.637772, 27.953389, -106.346771, 40.489673,  10.451526, 138.252924, 37.906193 , 28.233608, 18.49041	, 19.145136	, 22.937506, 8.227512, 32.290275,-95.712891 ))
+
+top20_16f <- dat_16f %>% filter(rank((time_sec))<=20, !is.na(continent)) %>%  group_by(country) %>% arrange(.,country)%>% count() %>%  as.data.frame(top20_16f)
+
+top20_16f <-top20_16f  %>% mutate(
+  lat = c( -25.274398, 25.930414, 53.709807	,  9.145 , 53.41291, 41.87194 , 36.204824, -0.023559	, 56.879635, 55.169438, 40.339852, -9.189967 , 39.399872	, 37.09024 ), 
+  long= c(  133.775136, 50.637772 , 27.953389 ,40.489673, -8.24389	,12.56738, 138.252924, 37.906193 , 24.603189, 23.881275, 127.510093, -75.015152	,  -8.224454	, -95.712891))
+
+library(zoo)
+library(maps)
+world_map = map_data("world")
+jhu <- read_csv("time_series_covid19_confirmed_global.csv")
+# Reshape to long format and convert the dates to date types
+# Your code here
+jhu_long <- jhu %>% gather(date, cases, `1/22/20`:`10/31/20`)
+jhu_long <- jhu_long %>% mutate(date = mdy(date))
+#class(jhu_long$date)
+# Sum up the number of cases within each country and date
+# Your code here
+jhu_sum <- jhu_long %>% 
+   select(`Country/Region`, date, cases)  %>% 
+   group_by(`Country/Region`, date) %>% 
+   summarize(total_cases = sum(cases, na.rm=TRUE), .groups = "drop") %>%
+   ungroup()
+# Calculate 7-day rolling average of new cases
+# Add 7-day rolling average of new cases to data frame from question 5
+jhu_sum <- jhu_sum %>% 
+   group_by(`Country/Region`) %>%
+   arrange(date) %>%
+   mutate(cases_increase = total_cases - lag(total_cases)) %>% 
+   ungroup() %>% 
+   arrange(`Country/Region`)
+
+jhu_sum <- jhu_sum %>% 
+   group_by(`Country/Region`) %>%
+   arrange(date) %>%
+   mutate(cases_7rolling = rollmean(cases_increase, k = 7, fill = NA)) %>% 
+   ungroup() %>% 
+   arrange(`Country/Region`)
+ 
+uid_lookup_table = read_csv("UID_ISO_FIPS_LookUp_Table.csv")
+ 
+# Extract the country-level populations and use nice names
+uid_pop <- uid_lookup_table %>% 
+  subset(is.na(Province_State)) %>% 
+  rename(country = "Country_Region", population = "Population") %>% 
+  select(country, population)
+# Join the country populations (uid_pop) to the Johns Hopkins data
+jhu_sum <- left_join(jhu_sum, uid_pop, by= c("Country/Region" = "country"))
+# Create a new cases per million variable (7-day average)
+jhu_sum <- jhu_sum %>% 
+   mutate(new_cases7_per_million = cases_7rolling /(population/1000000))
+# Key for discrepant country names in Johns Hopkins and world map data
+country_key = data.frame(rbind(c("Antigua and Barbuda", "Antigua"), 
+                               c("Burma", "Myanmar"), 
+                               c("Cabo Verde", "Cape Verde"), 
+                               c("Congo (Kinshasa)", 
+                                 "Democratic Republic of the Congo"), 
+                               c("Congo (Brazzaville)", 
+                                 "Republic of Congo"), 
+                               c("Cote d'Ivoire", "Ivory Coast"), 
+                               c("Czechia", "Czech Republic"), 
+                               c("Eswatini", "Swaziland"), 
+                               c("Holy See", "Vatican"), 
+                               c("Korea, South", "South Korea"), 
+                               c("North Macedonia", "Macedonia"), 
+                               c("Saint Kitts and Nevis", "Saint Kitts"), 
+                               c("Saint Vincent and the Grenadines", 
+                                 "Saint Vincent"), 
+                               c("Taiwan*", "Taiwan"), 
+                               c("Trinidad and Tobago", "Trinidad"), 
+                               c("United Kingdom", "UK"), 
+                               c("US", "USA")))
+names(country_key) = c("JHU", "map")
+
+# Create named vector for recoding country names
+recode_map <- country_key$JHU; names(recode_map) = country_key$map
+# Recode country names in world map data to match with Johns Hopkins
+world_map <- world_map %>%
+  mutate(region = recode(region, !!!recode_map))
+# Filter Johns Hopkins data for July 1, 2020 and join with world_map data frame.
+# When joining, remember that the variable referring to countries has a different name in the JHU and world map data frames.
+jhu_0701 <- jhu_sum %>%
+   filter(date == "2020-07-01") 
+jhu_0701 <- left_join(jhu_0701, world_map, by= c("Country/Region" = "region"))
+# Heatmap of cases per million on Jul 1, 2020.
+library(RColorBrewer)
+mappie<- jhu_0701 %>% 
+  ggplot() +
+   geom_polygon(color = "black", aes(x = long, y = lat, group = group, fill=new_cases7_per_million)) +  coord_fixed(1.3)  +
+   theme(panel.grid.major = element_blank(), 
+         panel.background = element_blank(),
+         axis.title = element_blank(), 
+         axis.text = element_blank(),
+         axis.ticks = element_blank()) +
+   scale_fill_gradientn(colors = brewer.pal(8, "Oranges"), trans = "sqrt")  +  
+   theme(plot.title = element_text(hjust = 0.5)) +
+   labs(fill="Cases per million")
+mappie_1<-mappie + 
+   ggtitle("Countries of Top 20 Male Finishers on COVID-19 Heatmap") +
+  geom_point(data= top20_20m, aes(x=long, y=lat, size=n , color='2020'), alpha=0.5) + 
+  geom_point(data= top20_16m, aes(x=long, y=lat, size=n, color='2016'), alpha=0.7) +
+  scale_color_manual(name='Year',
+                     breaks=c('2020', '2016'),
+                     values=c('2020'='blue', '2016'='green'))
+
+mappie_2<-mappie + 
+   ggtitle("Countries of Top 20 Female Finishers on COVID-19 Heatmap")+ 
+  geom_point(data= top20_20f, aes(x=long, y=lat, size=n , color='2020'), alpha=0.5) + 
+  geom_point(data= top20_16f, aes(x=long, y=lat, size=n, color='2016'), alpha=0.7) +
+  scale_color_manual(name='Year',
+                     breaks=c('2020', '2016'),
+                     values=c('2020'='blue', '2016'='green'))
+
+mappie_1
+```
+ 
+On this COVID-19 heatmap, countries represented by top 20 male marathon finishers are represented by a shade of orange, graded from light to dark, to reflect each country's severity of COVID-19 at the beginning of July 2021. Severity is calculated by the 7-day average of COVID-19 cases on July 1st, 2021. The green dots are the top 20 male finishers at the 2016 games; the blue dots are the top 20 male finishers at the 2020 games; the size of the dots reflect the numbers of athletes who qualified in the top 20. This graph allows us to see the change in top 20 finishers and their represented countries across 2016 and 2020 on a COVID-19 heatmap.
+ 
+
+### Graph 12. Countries of Top 20 Female Finishers on COVID-19 Heatmap
+
+
+
+```{r message=FALSE, warning=FALSE}
+## Graph 12. Countries of Top 20 Female Finishers on COVID-19 Heatmap
+
+mappie_2  
+```
+
+On this COVID-19 heatmap, countries represented by top 20 female marathon finishers are represented by a shade of orange, graded from light to dark, to reflect each country's severity of COVID-19 at the beginning of July 2021. Severity is calculated by the 7-day average of COVID-19 cases on July 1st, 2021. The green dots are the top 20 female finishers at the 2016 games; the blue dots are the top 20 female finishers at the 2020 games; the size of the dots reflect the numbers of athletes who qualified in the top 20. This graph allows us to see the change in top 20 finishers and their represented countries across 2016 and 2020 on a COVID-19 heatmap.
+
+
+
+## 3. Shiny App Analysis (Yuki Zhong)
+
+
+```{r}
+# Libraries
+library(tidyverse)
+library(shiny)
+library(ggthemes)
+library(shinythemes)
+
+# Read in dataframe
+dat <- read_csv("data.csv")
+
+shinyApp(ui = fluidPage( 
+    # Change theme 
+    theme = shinytheme("superhero"),
+   
+    #name title Panel
+    titlePanel("Difference of time between 2016 and 2020 Olympics marathon record for each rank"),
+    
+    br(),
+    
+    # Sidebar
+    sidebarLayout(
+        
+        # Widgets for selection
+        sidebarPanel(
+            # Explanatory text
+            p("This Shiny apps allows you to use a slide bar to see the change of differene in each ranking between 2016 and 2020 Olympics, seperately for men and women."),
+            
+            br(),
+            
+            # Radio buttons that allows the user to choose a gender
+            radioButtons(inputId = "sex", label = "Select men or women",
+                         choices = c("Men", "Women")),
+            
+            # Input: rank slider with basic animation
+            sliderInput("rank", "rank",
+                        min = 1, max = 73,
+                        value = 1, 
+                        step = 1,
+                        ticks = TRUE,  
+                        animate = animationOptions(interval = 800) # add play speed
+        )),
+        
+        # Main panel
+        mainPanel(
+          
+            # Plot
+            plotOutput("plot"),
+            br(), 
+            # Message about the difference in seconds for each rank
+            textOutput("diff")
+        )
+    )
+),
+
+# Define server logic
+server = function(input, output){
+    
+    # Make the selected line for the selected gender
+    output$plot = renderPlot({
+      
+        # create the dataset for the plot
+        i <- 1
+        n <- input$rank+1
+        y_diff<- c() #define an empty list that will be the y-value for the plot
+        x_rank<- c() #define an empty list that will be the x-value for the plot
+      
+        #use a loop function to keep adding the previous differences and ranks to the list given a specific rank 
+        while (i< n) {
+          dat_diff <- dat %>% filter(sex == input$sex & rank == i) 
+          y_diff <- c(y_diff,  diff(dat_diff$time_sec))
+          x_rank <- c(x_rank, i)
+          i <- i+1
+        }
+        
+        # Scatterplot for the difference in seconds vs. rank
+        ggplot() +
+        theme_economist() +
+        geom_line(aes(x = x_rank, y=y_diff), color = ifelse(input$sex == "Men", 'deepskyblue2','hotpink2'), size = 1) +
+        xlab("rank") +
+        ylab("Difference (seconds Rio - Tokyo)") +
+        geom_hline(yintercept = 0, colour = 'black') 
+        
+            
+    })
+    
+    # Identify which Olympics had a faster record by how many seconds, for each rank and gender
+    output$diff = renderText({
+        dat_diff <- dat %>% filter(sex == input$sex & rank == input$rank) 
+        paste0("For rank ", input$rank, " in ",input$sex, "'s Marathon , ", ifelse(diff(dat_diff$time_sec)<0,  "the record in Tokyo 2020", "the record in Rio 2016"), " is ", abs(diff(dat_diff$time_sec)), " seconds faster")
+    })
+})
+```
+
+
+**Interpretation:**
+From the interactive graphs, we can see that for both men and women, Tokyo 2020 Olympics seemed to have faster records overall. For men, the records in Rio are faster in high ranks between 1-16 and middle ranks between 30-40. For women, the records in Rio are faster only sparsely between the rank 30 and 50. In addition, we can see that the difference of time is more exaggerated in high ranks and low ranks, while the differences in the middle ranks are not too many. 
+
+## 4. Regression (Satoko Ugai)
+
+```{r, warning=FALSE}
+#This study examined whether there was a difference in marathon records between pre- and post -COVI19 Olympics. A total of 506 athletes participating Rio2016 and Tokyo2020 Olympics were included in this study.The primary outcome was a marathon record. The predictor was Rio Olympic2016 (i.e.,pre-COVID19 Olympic) and Tokyo Olympic2020 (i.e.,post-COVID19 Olympic).
+
+# Libraries
+library(tidyverse)
+
+# Read in the dataframe
+dat <- read_csv("data.csv")
+
+#Making table1
+library(gtsummary)
+labels <-  list(time_sec ~ "Marathon record,mean sec (SD)", 
+                sb ~ "Season best, n (%)",
+                dnf ~ "Did not finish, n (%)",
+                age ~ "Age, mean year(SD)",
+                sex ~ "Sex,n (%)",
+                continent ~ "Continent,n(%)",
+                lockdown ~ "Number of athletes from locked down countries")
+#making table1 overall
+tbl1<- tbl_summary(data=dat %>% 
+                   
+                   dplyr::select(olympic,time_sec,sb,dnf,age,sex,continent,lockdown),
+                   by=olympic,
+                   label=labels,
+                   statistic=list(c(time_sec,age)~"{mean}({sd})"),
+                   missing="no") %>%
+  add_p(test=list(c(time_sec,age)~"t.test",
+                  all_categorical()~"chisq.test.no.correct")) %>%
+                  modify_caption("**Table 1. demographic Characteristics of all athletes**") 
+tbl1
+
+#Table1 summarizes demographic characteristics of all athletes according to Rio Olympic 2016 and Tokyo Olympic 2020. Two groups were compared regarding the demographic characteristics with t test for continuous variables and chi-squared test for categorical variables. There were 312 athletes who participated in the Rio Olympics and 194 athletes who participated in the Tokyo Olympics.The mean marathon record is 9165 seconds (2H32M45sec) in Rio Olympic and 8887 seconds (2H28M07sec) in Tokyo Olympic. The t test showed that a p-value was <0.001.We therefore conclude that there is a statistically significant difference between marathon records and Olympics among male athletes.The proportion of athletes who achieved a season's best and those who dropped out of the marathon race was higher in the Tokyo Olympics than that in the Rio Olympics. By continent, the percentages of athletes from Asia and South America was lower in the Tokyo Olympics than those in the Rio Olympics.
+
+#making table2 men
+labels1 <-  list(time_sec ~ "Marathon record,mean sec (SD)", 
+                sb ~ "Season best, n (%)",
+                dnf ~ "Did not finish, n (%)",
+                age ~ "Age, mean year(SD)",
+                continent ~ "Continent,n (%)",
+                lockdown ~ "Number of athletes from locked down countries")
+tbl2<- tbl_summary(data=dat %>% 
+                   filter(sex=="Men") %>%
+                   dplyr::select(olympic,time_sec,sb,dnf,age,continent,lockdown),
+                   by=olympic,
+                   label=labels1,
+                   statistic=list(c(time_sec,age)~"{mean}({sd})"),
+                   missing="no") %>%
+  add_p(test=list(c(time_sec,age)~"t.test",
+                  all_categorical()~"chisq.test.no.correct")) %>%
+                  modify_caption("**Table 2. demographic Characteristics of male athletes**") 
+tbl2
+
+#Table2 summarizes demographic characteristics of male athletes according to Rio Olympic 2016 and Tokyo Olympic 2020.The mean marathon record is 8542 seconds (2H22M22sec) in Rio Olympic and 8324 seconds (2H18M44sec) in Tokyo Olympic. The t test showed that a p-value was <0.001.We therefore conclude that there is a statistically significant difference between marathon records and Olympics among male athletes. The percentages of athletes who achieved season best and those who dropped out of the marathon race was significantly higher at the Tokyo Olympics than those at the Rio Olympics. Like the characteristics of overall athletes, the percentages of male athletes from Asia and South America was lower in the Tokyo Olympics than those in the Rio Olympics.
+
+#making table3 women
+tbl3<- tbl_summary(data=dat %>% 
+                   filter(sex=="Women") %>%
+                   dplyr::select(olympic,time_sec,sb,dnf,age,continent,lockdown),
+                   by=olympic,
+                   label=labels1,
+                   statistic=list(c(time_sec,age)~"{mean}({sd})"),
+                   missing="no") %>%
+  add_p(test=list(c(time_sec,age)~"t.test",
+                  all_categorical()~"chisq.test.no.correct")) %>%
+                  modify_caption("**Table 3. demographic Characteristics of female athletes**") 
+tbl3
+
+#Table3 summarizes demographic characteristics of female athletes according to Rio Olympic 2016 and Tokyo Olympic 2020. The mean marathon record is 9814 seconds (2H43M34sec) in Rio Olympic and 9473 seconds (2H37M53sec)in Tokyo Olympic. The t test showed that a p-value was <0.001. We conclude that there is a statistically significant difference between marathon records and Olympics among female athletes. Similar to the male athletes, the percentage of athletes who achieved a season's best time was higher in the Tokyo Olympics than that in the Rio Olympics, while there was no statistically significant difference in the percentage of athletes who drop out of the race between the two Olympics. The percentages of athletes from Asia and South America was lower in the Tokyo Olympics than those in the Rio Olympics similarly to overall and male athletes.
+
+
+#Multivariable-adjusted linear regression
+
+#male
+dat1=dat %>% 
+     filter(sex=="Men")
+dat$continent<-as.factor(dat$continent)
+
+model3<-lm(time_sec ~  olympic+sb+age+continent,data=dat1)
+summary(model3)
+model3 %>% 
+  tbl_regression(intercept = TRUE)%>%
+as_gt() %>%
+  gt::tab_header(title = "Table 4. Multivariable-adjusted linear regression",
+                 subtitle = "Men")
+#Female
+dat2=dat %>% 
+     filter(sex=="Women")
+model4<-lm(time_sec ~  olympic+sb+age+continent,data=dat2)
+summary(model4)
+model4 %>% 
+  tbl_regression(intercept = TRUE)%>%
+as_gt() %>%
+  gt::tab_header(title = "Table 5. Multivariable-adjusted linear regression",
+                 subtitle = "Women")
+
+#Making figure1
+#Marathon Record in Male athlete from Asian countries
+
+p3<-dat%>%filter(sex=="Men"|continent=="Asia") %>%
+  ggplot(aes(X=factor(olympic), y=time)) +
+  geom_boxplot(aes(olympic,time)) +
+  scale_y_time() +
+  xlab("Olympic") +
+  ylab("Records" ) +
+  ggtitle("Figure 1. Marathon Record in Male athlete from Asian countries")
+p3
+
+
+#Making figure2
+#Marathon Record in Female athlete from Asian countries
+
+p4<-dat%>%filter(sex=="Female"|continent=="Asia") %>%
+  ggplot(aes(X=factor(olympic), y=time)) +
+  geom_boxplot(aes(olympic,time)) +
+  scale_y_time() +
+  xlab("Olympic") +
+  ylab("Records" ) +
+  ggtitle("Figure 2. Marathon Record in Female athlete from Asian countries")
+p4
+
+#After adjusting for season-best times, age, and continent in the multivariable logistic regression model, there is no statistically significant difference in marathon times between the Rio and Tokyo Olympics for both men and women (Table 4,5). There were fewer Asian athletes participating in the Tokyo Olympics compared to the Rio Olympics. In addition, the records of Asian athletes were faster in the Tokyo Olympics than in the Rio Olympics (Figure 1,2). For example, North Korea did not participate as a country in order to protect athletes from COVID19 infection. The three women runner from North Korean who did not participate the race had marathon world rankings of 80th, 123rd, and 158th respectively. The male runner from North Korean who did not participate the race was ranked 168th. It is possible that the world marathon rankings of North Korean athletes in the Tokyo Olympics were relatively lower than the athletes who participated in the Tokyo Olympics. Therefore, it is possible that there is a selection bias for the athletes who participated in the Tokyo Olympics in this study.
+
+#Extend the model to evaluate whether there is evidence that the association between olympic and Maratho record is different for those with and without a lockdown policy
+
+#Male
+
+model5<-lm(time_sec ~  olympic+sb+age+continent+olympic*lockdown,data=dat1)
+summary(model5)
+model5 %>% 
+  tbl_regression(intercept = TRUE)%>%
+as_gt() %>%
+  gt::tab_header(title = "Table 5. Multivariable-adjusted linear regression (evaluate the interaction by lockdown policy)",
+                 subtitle = "Men")
+
+#Female
+
+model6<-lm(time_sec ~  olympic+sb+age+continent+olympic*lockdown,data=dat2)
+summary(model6)
+model6 %>% 
+  tbl_regression(intercept = TRUE)%>%
+as_gt() %>%
+  gt::tab_header(title = "Table 6. Multivariable-adjusted linear regression (evaluate the interaction by lockdown policy)",
+                 subtitle = "Women")
+
+#We evaluate whether there is evidence that the association between Olympics and marathon record is different between countries with and without a lockdown policy. The multivariable linear regression showed that a p-value was 0.7 for male and 0.4 for female. Therefore, we fail to reject the null hypothesis at a 0.05 level of significance and conclude that the association between marathon records and pre-/post-COVID19 Olympics does not significantly differ by the lockdown policy(Table 5,6). However, the sample size of countries without the lockdown policy is small. Therefore, it is possible that we didn't have enough power to detect a statistical interaction.
+
+#Extend the model to evaluate whether total COVID-19 cases per population of each country is a significant predictor for Marathon records.
+
+#Men
+dat3<-dat %>% 
+  filter(sex %in% "Men"|olympic%in%"Tokyo2020")
+model7<-lm(time_sec ~  olympic+case_pp+sb+age+continent+olympic*lockdown,data=dat3)
+summary(model7)
+model7 %>% 
+  tbl_regression(intercept = TRUE)%>%
+as_gt() %>%
+  gt::tab_header(title = "Table 7. Multivariable-adjusted linear regression",
+                 subtitle = "Men in Tokyo2020")
+
+#Women
+dat4<-dat %>% 
+  filter(sex %in% "Women"|olympic%in%"Tokyo2020")
+model8<-lm(time_sec ~  olympic+case_pp+sb+age+continent+olympic*lockdown,data=dat4)
+summary(model8)
+model8 %>% 
+  tbl_regression(intercept = TRUE)%>%
+as_gt() %>%
+  gt::tab_header(title = "Table 8. Multivariable-adjusted linear regression",
+                 subtitle = "Women in Tokyo2020")
+
+#We evaluate whether total COVID-19 cases per population of each country is a significant predictor for Marathon records.The p-values were 0.3 in male athletes and 0.006 in female athletes(Table 7,8).Therefore, we can say that the total COVID-19 cases per each country is a significant predictor for Marathon records among female athletes.It is possible that the severer the infection was, the better the marathon records were.Therefore, female athletes who participated in the Tokyo Olympics might be highly physically capable of getting better records even though they were affected by the infection.
+
+```
+
+## 5. Machine Learning (Yi-Ting Tsai and Mariko Ando)
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+load("data.RData")
+```
+
+```{r, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(cutpointr)
+library(randomForest)
+library(pROC)
+library(rpart)
+library(caret)
+library(splitstackshape)
+library(broom)
+library(e1071)
+library(knitr)
+```
+
+### Classification
+
+Aside from looking at the difference between Rio 2016 and Tokyo 2020 Olympics, we are also interested in seeing how we can use the information of COVID cases per population and other covariates to help us "predict" marathon records. Since COVID data is only available for the Tokyo 2020 Olympics, this part of the analysis will focus only on Tokyo 2020 Olympics data. Instead of doing prediction to get the exact performance, we can simplify the task to doing classification. The first thing we have to do is to convert the continuous marathon record data into a binary variable. We can first decide a cutpoint, and then classify the marathon records that are bigger than this point into a “slower” group, and the records smaller than this point into a “faster” group. 
+
+### Cutpoint Analysis for Classification (Yi-Ting Tsai)
+
+Since we are splitting the records into faster and slower group, and men are usually faster, there will be some problem if we combine men’s and women’s data together in this analysis. For example, the faster group are all men, and the slower group are all women. To avoid this potential issue, we will conduct our classification analysis separately on men and women. 
+
+We utilize the training data to determine the optimal cutpoint by the R package `cutpointr`. We first create a label that assigns the top half ranking athletes as 1, and the second half ranking athletes as 0, and use this label to calculate the sensitivity and specificity for different cutpoints. We then choose the cutpoint that gives us the highest sum of sensitivity and specificity.
+
+### Optimal Cutpoint for Men
+
+```{r}
+datsecond <- dat %>% 
+  filter(dnf==0 & olympic=="Tokyo2020" & sex=="Men") %>%
+  dplyr::select(rank, time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+
+datsecond <- datsecond %>% 
+  mutate(rank_b = ifelse(as.numeric(rank)<=38, 1, 0))
+
+set.seed(1)
+train.rows <- sample(rownames(datsecond), dim(datsecond)[1]*0.7)
+test.rows <- setdiff(rownames(datsecond), train.rows)
+train_set <- datsecond[train.rows, ]
+test_set <- datsecond[test.rows, ]
+
+opt_cut <- cutpointr(train_set, time_sec, rank_b, pos_class = 1, direction = "<=")  #8239
+plot_metric(opt_cut)
+```
+
+### Optimal Cutpoint for Women
+
+```{r}
+datsecond <- dat %>% 
+  filter(dnf==0 & olympic=="Tokyo2020" & sex=="Women") %>%
+  dplyr::select(rank, time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+
+datsecond <- datsecond %>% 
+  mutate(rank_b = ifelse(as.numeric(rank)<=37, 1, 0))
+
+set.seed(1)
+train.rows <- sample(rownames(datsecond), dim(datsecond)[1]*0.7)
+test.rows <- setdiff(rownames(datsecond), train.rows)
+train_set <- datsecond[train.rows, ]
+test_set <- datsecond[test.rows, ]
+
+opt_cut <- cutpointr(train_set, time_sec, rank_b, pos_class = 1, direction = "<=")  # 9339
+plot_metric(opt_cut)
+```
+
+The above two graphs are plotting the sum of sensitivity and specificity (using the function `sum_sens_spec`) against different cutpoints, and we are choosing the cutpoint that gives us the highest value on the y-axis. From this analysis, the optimal cutpoint for men is 8239, and the optimal cutpoint for women is 9339. We will use these cutpoints throughout our following machine learning and bootstrapping models.
+
+
+
+
+
+### Machine learning: model building & comparison (Mariko Ando)
+After we investigated  the athletes' performance by comparing 2016 vs 2020, we also got interested in building models that could classify the athletes' performance during the COVID-19 pandemic by using 2020 Olympic data. By using the best model, we can classify the athletes' performance in the future Olympic Games during the COVID-19 pandemic, which is interesting to athletes and some others. We included the COVID-19 severity, continent where the athletes came from, age, gdp in 2020 of the country where the athletes came from, and prior attendance at Rio 2016 in the model for classifying the performance (1: worse record, 0: better record). As male athletes ran much faster than female athletes, we decided to separately build models for males and females.
+
+We compared six models including logistic regression, Naive Bayes, knn, QDA, LDA, and Trees in terms of model accuracy and discrimination (by AUC). Table 1 shows the summary of model comparison for males, and table 2 shows the summary of model comparison for females.
+.
+
+### Analysis for Men's records
+```{r, warning=FALSE}
+dat=as.data.frame(dat)
+```
+
+```{r}
+# library
+library(tidyverse)
+library(rvest)
+library(lubridate)
+library(broom)
+library(caret)
+library(ggplot2)
+library(e1071)
+library(MASS)
+library(rpart)
+library(randomForest)
+library(pROC)
+library(adabag)
+library(splitstackshape)
+library(knitr)
+```
+
+```{r}
+# filter: 2020, Men, finish race
+# I created a dataset, datsecond, just including male athletes who finished race in the Tokyo 2020 game.
+# As men ran much faster than women, we separately analyzed the male and female datasets.
+datsecond <- dat %>% filter(dnf==0 & olympic=="Tokyo2020" & sex=="Men") %>% dplyr::select(time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+summary(datsecond)
+```
+
+```{r}
+# convert binary and categorical data as factor
+datsecond <- datsecond %>% 
+  mutate(continent=as.factor(continent), prior_attend=as.factor(prior_attend))
+
+# omit rows with NA
+# Here, we decided to conduct complete case analysis.
+datsecond<-datsecond %>% filter(!is.na(time_sec))%>% filter(!is.na(case_pp))%>% filter(!is.na(continent))%>% filter(!is.na(age))%>% filter(!is.na(gdp2020))%>% filter(!is.na(prior_attend))
+summary(datsecond)
+
+# Based on the calculation by Yi-Ting, one member of our team, we used 8239 sec as a cutpoint for male athletes. We defined time_sec<8239 as better record (outcome=0) and time_sec>=8239 as worse record (outcome=1).
+
+cut <- 8239
+datsecond<-datsecond%>%
+  mutate(timebinary=ifelse(time_sec<cut,0,1)) %>%
+  mutate(timebinary=as.factor(timebinary))
+summary(datsecond)
+
+
+# split train (70%), test (30%)
+# We used stratified function to split the dataset into training and testing datasets because we wanted to get almost equal distribution of outcome in both datasets. After splitting, the training set included 49 athletes while the testing set included 22 athletes.
+set.seed(1)
+x <- stratified(datsecond, "timebinary", 0.70, keep.rownames = TRUE)
+train_set <- x %>% dplyr::select(-rn)
+train_index <- as.numeric(x$rn)
+test_set <- datsecond[-train_index,]
+dim(train_set)
+dim(test_set)
+```
+
+```{r}
+# Here, we decided to build six models to predict the worse record.
+# Six models include logistic regression, Naive Bayes, knn, QDA, LDA, and Trees. The model included COVID-19 severity (continuous) defined as the case number per population, continent (categorical), age (continuous), gdp2020 (continuous), and prior_attend (binary). 
+#In each model, we will report accuracy, sensitivity, and specificity.
+
+# Model1: logistic regression
+# accuracy = 0.5000, sensitivity = 0.5833, specificity = 0.4000 
+glm_fit <- glm(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set, family = "binomial")
+p_hat_logit<-predict(glm_fit, newdata=test_set, type="response")
+y_hat_logit <- factor(ifelse(p_hat_logit > 0.5, 1, 0))
+confusionMatrix(as.factor(y_hat_logit), reference = test_set$timebinary,positive="1")
+```
+```{r}
+# Model2: Naive Bayes
+# accuracy = 0.5909, sensitivity = 0.7500, specificity = 0.4000
+nb_fit <- naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_nb<-predict(nb_fit, newdata=test_set, type="raw")[,2]
+y_hat_nb<-factor(ifelse(p_hat_nb>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_nb),reference=test_set$timebinary,positive="1")
+```
+```{r}
+# Model3: knn
+# For the value of k, we chose the number closest to the squared root of the sample size of the training set, which was 7.
+# accuracy =  0.5000, sensitivity = 0.5833, specificity = 0.4000 
+knn_fit<-knn3(timebinary ~ case_pp + continent + age  + gdp2020 + prior_attend, data = train_set, k=7)
+p_hat_knn<-predict(knn_fit,newdata=test_set)[,2]
+y_hat_knn<-factor(ifelse(p_hat_knn>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_knn),reference=test_set$timebinary,positive="1")
+```
+
+```{r}
+# Model4: QDA 
+# accuracy = 0.5000 , sensitivity = 0.6667, specificity = 0.3000
+set.seed(1)
+qda_fit <- qda(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_qda <- predict(qda_fit,newdata=test_set)$posterior[,2]
+y_hat_qda <- factor(ifelse(p_hat_qda>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_qda),reference=test_set$timebinary,positive="1")
+```
+```{r}
+# Model5: LDA
+# accuracy = 0.5000, sensitivity = 0.5833, specificity = 0.4000
+set.seed(1)
+lda_fit <- lda(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_lda <- predict(lda_fit,newdata=test_set)$posterior[,2]
+y_hat_lda <- factor(ifelse(p_hat_lda>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_lda),reference=test_set$timebinary,positive="1")
+```
+```{r}
+# Model6: Decision trees
+# accuracy = 0.5455, sensitivity = 0.5833, specificity = 0.5000
+set.seed(1)
+tree_fit <- rpart(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_tree <- predict(tree_fit,newdata=test_set)[,2]
+y_hat_tree <- factor(ifelse(p_hat_tree>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_tree),reference=test_set$timebinary,positive="1")
+```
+```{r}
+# plot ROC curve
+# Here, we compare ROC curves and AUC to see which model has a better discrimination.
+
+roc_logit<-roc(test_set$timebinary,p_hat_logit)
+roc_nb<-roc(test_set$timebinary,p_hat_nb)
+roc_knn<-roc(test_set$timebinary,p_hat_knn)
+roc_qda<-roc(test_set$timebinary,p_hat_qda)
+roc_lda<-roc(test_set$timebinary,p_hat_lda)
+roc_tree<-roc(test_set$timebinary,p_hat_tree)
+ggroc(list("Logistic regression"=roc_logit,"Naive Bayes"=roc_nb,"kNN, k=7"=roc_knn, "QDA model"=roc_qda,"LDA model"=roc_lda, "Decision Tree"=roc_tree))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves") +
+  xlab("Specificity")+
+  ylab("Sensitivity")+ 
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Naive Bayes model has the highest AUC.
+auc(roc_logit)
+auc(roc_nb)
+auc(roc_knn)
+auc(roc_qda)
+auc(roc_lda)
+auc(roc_tree)
+```
+
+```{r}
+#Table for men's models
+Men_models <- c("Logistic", "Naive Bayes", "kNN, k=7", "QDA", "LDA", "Trees")
+Accuracy <- c("0.5000", "0.5909", "0.5000", "0.5000", "0.5000", "0.5455")
+Sensitivity <- c("0.5833", "0.7500", "0.5833", "0.6667", "0.5833", "0.5833")
+Specificity <- c("0.4000", "0.4000", "0.4000", "0.3000", "0.4000", "0.5000")
+PPV <- c("0.5385", "0.6000", "0.5385", "0.5333", "0.5385", "0.5833")
+NPV <- c("0.4444", "0.5714", "0.4444", "0.4286", "0.4444", "0.5000")
+AUC <- c("0.4917", "0.6500", "0.4833", "0.5375", "0.5333", "0.5625")
+male_df <- data.frame(Men_models, Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+
+male_df2 <- head(male_df)
+knitr::kable(male_df2, col.names = gsub("[.]", " ", names(male_df)), caption = "Table 1: Model comparison for male athletes")
+```
+##### (Summary) According to the outputs, Naive Bayes model showed the highest accuracy and the highest AUC (i.e., best discrimination). Then, Naive Bayes model could be the best model to classify male athletes' performance in the future Olympic Games during a similar pandemic. However, as the current dataset included very small number of samples, we should ideally repeat similar analyses by using bootstrapping methods or other datasets with larger sample size of athletes and compare the models. 
+
+
+### Analysis for women's records
+```{r}
+# filter: 2020, Women, finish race
+# I created a dataset, datsecondfemale, just including female athletes who finished race in the Tokyo 2020 game.
+
+datsecondfemale <- dat %>% filter(dnf==0 & olympic=="Tokyo2020" & sex=="Women") %>% dplyr::select(time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+summary(datsecondfemale)
+
+# convert binary and categorical data as factor
+datsecondfemale <- datsecondfemale %>% 
+  mutate(continent=as.factor(continent), prior_attend=as.factor(prior_attend))
+
+# omit rows with NA
+#Here, we decided to conduct complete case analysis again.
+datsecondfemale<-datsecondfemale %>% filter(!is.na(time_sec))%>% filter(!is.na(case_pp))%>% filter(!is.na(continent))%>% filter(!is.na(age))%>% filter(!is.na(gdp2020))%>% filter(!is.na(prior_attend))
+summary(datsecondfemale)
+```
+
+
+```{r}
+# Based on the calculation by Yi-Ting, one member of our team, we used 9339 sec as a cutpoint for female athletes. We defined time_sec<9339 as better record (outcome=0) and time_sec>=9339 as worse record (outcome=1).
+
+cut_female <- 9339
+datsecondfemale<-datsecondfemale%>%
+   mutate(timebinary=ifelse(time_sec<cut_female,0,1)) %>%
+   mutate(timebinary=as.factor(timebinary))
+summary(datsecondfemale)
+
+
+# split train (70%), test (30%)
+# We used stratified function to split the dataset into training and testing datasets because we wanted to get almost equal distribution of outcome in both datasets. After splitting, the training set included 49 athletes while the testing set included 22 athletes.
+set.seed(1)
+x_female <- stratified(datsecondfemale, "timebinary", 0.70, keep.rownames = TRUE)
+train_set_female <- x_female %>% dplyr::select(-rn)
+train_index_female <- as.numeric(x_female$rn)
+test_set_female <- datsecondfemale[-train_index_female,]
+dim(train_set_female)
+dim(test_set_female)
+```
+
+```{r}
+# Here, we decided to build six models to predict the worse record.
+# Six models include logistic regression, Naive Bayes, knn, QDA, LDA, and Trees. The model included COVID-19 severity (continuous) defined as the case number per population, continent (categorical), age (continuous), gdp2020 (continuous), and prior_attend (binary).  
+#In each model, we will report accuracy, sensitivity, and specificity.
+
+# Model1: logistic regression
+# accuracy = 0.5909, sensitivity = 0.7273 , specificity = 0.4545 
+glm_fit_female <- glm(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female, family = "binomial")
+p_hat_logit_female<-predict(glm_fit_female, newdata=test_set_female, type="response")
+y_hat_logit_female <- factor(ifelse(p_hat_logit_female > 0.5, 1, 0))
+confusionMatrix(as.factor(y_hat_logit_female), reference = test_set_female$timebinary,positive="1")
+```
+```{r}
+# Model2: Naive Bayes
+# accuracy = 0.3636, sensitivity = 0.4545, specificity = 0.2727  
+nb_fit_female <- naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female)
+p_hat_nb_female<-predict(nb_fit, newdata=test_set_female, type="raw")[,2]
+y_hat_nb_female<-factor(ifelse(p_hat_nb_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_nb_female),reference=test_set_female$timebinary,positive="1")
+```
+
+```{r}
+# Model3: knn
+# For the value of k, I chose the number closest to the squared root of the sample size of the training set, which was 7.
+# accuracy = 0.7273, sensitivity = 0.6364, specificity = 0.8182
+knn_fit_female<-knn3(timebinary ~ case_pp + continent + age  + gdp2020 + prior_attend, data = train_set_female, k=7)
+p_hat_knn_female<-predict(knn_fit_female,newdata=test_set_female)[,2]
+y_hat_knn_female<-factor(ifelse(p_hat_knn_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_knn_female),reference=test_set_female$timebinary,positive="1")
+```
+
+
+```{r}
+# Model4: QDA  
+# accuracy = 0.4091 , sensitivity = 0.4545, specificity = 0.3636
+set.seed(1)
+qda_fit_female <- qda(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female)
+p_hat_qda_female <- predict(qda_fit_female,newdata=test_set_female)$posterior[,2]
+y_hat_qda_female <- factor(ifelse(p_hat_qda_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_qda_female),reference=test_set_female$timebinary,positive="1")
+```
+
+```{r}
+# Model5: LDA
+# accuracy = 0.5455 , sensitivity = 0.7273, specificity = 0.3636
+set.seed(1)
+lda_fit_female <- lda(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female)
+p_hat_lda_female <- predict(lda_fit_female,newdata=test_set_female)$posterior[,2]
+y_hat_lda_female <- factor(ifelse(p_hat_lda_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_lda_female),reference=test_set_female$timebinary,positive="1")
+```
+
+```{r}
+# Model6: Decision trees
+# accuracy = 0.5909, sensitivity =  0.6364, specificity = 0.5455  
+set.seed(1)
+tree_fit_female <- rpart(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set_female)
+p_hat_tree_female <- predict(tree_fit_female,newdata=test_set_female)[,2]
+y_hat_tree_female <- factor(ifelse(p_hat_tree_female>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_tree_female),reference=test_set_female$timebinary,positive="1")
+```
+
+
+```{r}
+# plot ROC curve
+# Here, we compare ROC curves and AUC to see which model has a better discrimination.
+roc_logit_female<-roc(test_set_female$timebinary,p_hat_logit_female)
+roc_nb_female<-roc(test_set_female$timebinary,p_hat_nb_female)
+roc_knn_female<-roc(test_set_female$timebinary,p_hat_knn_female)
+roc_qda_female<-roc(test_set_female$timebinary,p_hat_qda_female)
+roc_lda_female<-roc(test_set_female$timebinary,p_hat_lda_female)
+roc_tree_female<-roc(test_set_female$timebinary,p_hat_tree_female)
+ggroc(list("Logistic regression"=roc_logit_female,"Naive Bayes"=roc_nb_female,"kNN, k=7"=roc_knn_female, "QDA model"=roc_qda_female, "LDA model"=roc_lda_female, "Decision Tree"=roc_tree_female))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves") +
+  xlab("Specificity")+
+  ylab("Sensitivity")+ 
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Decision Trees is the best model in terms of AUC in women.
+auc(roc_logit_female)
+auc(roc_nb_female)
+auc(roc_knn_female)
+auc(roc_qda_female)
+auc(roc_lda_female)
+auc(roc_tree_female)
+```
+
+```{r}
+#Table for women's models
+Women_models <- c("Logistic", "Naive Bayes", "kNN, k=7", "QDA", "LDA", "Trees")
+Accuracy <- c("0.5909", "0.3636", "0.7273", "0.4091", "0.5455", "0.5909")
+Sensitivity <- c("0.7273", "0.4545", "0.6364", "0.4545", "0.7273", "0.6364")
+Specificity <- c("0.4545", "0.2727", "0.8182", "0.3636", "0.3636", "0.5455")
+PPV <- c("0.5714", "0.3846", "0.7778", "0.4167", "0.5333", "0.5833")
+NPV <- c("0.6250", "0.3333", "0.6923", "0.4000", "0.5714", "0.6000")
+AUC <- c("0.5868", "0.7107", "0.8017", "0.5868", "0.5702", "0.5826")
+female_df <- data.frame(Women_models, Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+
+female_df2 <- head(female_df)
+knitr::kable(female_df2, col.names = gsub("[.]", " ", names(female_df)), caption = "Table 2: Model comparison for female athletes")
+```
+
+##### (Summary) According to the outputs, the knn model showed the highest accuracy and the highest AUC (i.e., best discrimination). Then, knn model could be the best model to classify female athletes’ performance in the future Olympic Games during a similar pandemic. However, as the current dataset included very small number of samples, we should ideally repeat similar analyses by using bootstrapping methods or other datasets with larger sample size of athletes and compare the models.
+
+
+
+
+
+
+
+
+
+## Bootstrapping (Yi-Ting Tsai)
+
+Since the sample size of our dataset is very small, only 71 observations for men and women, respectively, this may cause a problem when training machine learning models. Therefore, we try to apply some methods that incorporate bootstrapping to see whether we can get better results. 
+
+We try to compare two sets of original vs. bootstrapped models:
+
+1. Decision tree and random forest
+
+2. Naive Bayes and the bootstrapped version of Naive Bayes
+
+We choose to compare decision tree and random forest since random forest is a very well-known machine learning model, and we would really like to see how can bootstrapping makes a difference between these two models. We choose Naive Bayes since it performs well among all of the machine learning models we've tried above (the best for men and the second best for women if we are looking at AUC). We would like to know whether doing bootstrapping can make the performances become even better.
+
+For random forest, we simply apply the random forest function in R. For Naive Bayes, we do the bootstrap manually. We first sample with replacement from the training data 100 times, each time with sample size equal to the training set. Then, for each resample, we fit a model and get the predicted class for each test data. We then use majority vote among these 100 models to determine the class of each data. 
+
+We will first fit the models and then present the ROC curves and some statistics at the end to do some comparisons.
+
+## Bootstrapping for Men
+
+```{r}
+# preparing the data
+# filter: 2020, Men, finish race
+datsecond <- dat %>% 
+  filter(dnf==0 & olympic=="Tokyo2020" & sex=="Men") %>%
+  dplyr::select(time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+
+# convert categorical/binary variables into factors
+datsecond <- datsecond %>% 
+  mutate(continent=as.factor(continent), prior_attend=as.factor(prior_attend))
+
+# omit the rows with NA
+datsecond<-datsecond %>% filter(!is.na(time_sec))%>% filter(!is.na(case_pp))%>% filter(!is.na(continent))%>% filter(!is.na(age))%>% filter(!is.na(gdp2020))%>% filter(!is.na(prior_attend))
+
+# add the binary outcome variable
+cut <- 8239
+datsecond<-datsecond%>%
+  mutate(timebinary=ifelse(time_sec<cut,0,1)) %>%
+  mutate(timebinary=as.factor(timebinary))
+
+# split train (70%), test (30%)
+set.seed(1)
+x <- stratified(datsecond, "timebinary", 0.70, keep.rownames = TRUE)
+train_set <- x %>% dplyr::select(-rn)
+train_index <- as.numeric(x$rn)
+test_set <- datsecond[-train_index,]
+```
+
+
+### Decision Tree and Random Forest (Men)
+
+```{r}
+# Decision trees
+set.seed(1)
+tree_fit <- rpart(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_tree <- predict(tree_fit,newdata=test_set)[,2]
+y_hat_tree <- factor(ifelse(p_hat_tree>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_tree),reference=test_set$timebinary,positive="1")
+
+# Random Forest
+set.seed(1)
+rf_fit <- randomForest(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_rf <- predict(rf_fit,newdata=test_set,type="prob")[,2]
+y_hat_rf <- factor(ifelse(p_hat_rf>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_rf),reference=test_set$timebinary,positive="1")
+
+# ROC curves
+roc_tree <- pROC::roc(test_set$timebinary,p_hat_tree)
+roc_rf <- pROC::roc(test_set$timebinary,p_hat_rf)
+p1 <- ggroc(list("Decision Tree"=roc_tree, "Random Forest"=roc_rf))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves - tree (men)") +
+  xlab("Specificity")+ylab("Sensitivity")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+## AUC
+pROC::auc(roc_tree)
+pROC::auc(roc_rf)
+```
+
+### Naive Bayes and the Bootstrapped Version (Men)
+```{r}
+# Naive Bayes
+nb_fit <- naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_nb<-predict(nb_fit, newdata=test_set, type="raw")[,2]
+y_hat_nb<-factor(ifelse(p_hat_nb>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_nb),reference=test_set$timebinary,positive="1")
+
+# bootstrapped version of naive bayes
+rows <- 1:49
+pred_class_table <- data.frame(matrix(ncol = nrow(test_set), nrow = 0))
+
+for(iter in 1:100){
+  # create the resample train set
+  sample_row <- sample(rows, size=85, replace = TRUE)
+  resample_train_set <- data.frame()
+  for(i in sample_row){
+    add_this <- train_set[i,]
+    resample_train_set <- rbind(resample_train_set, add_this)
+  }
+  nb_fit<-naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = resample_train_set)
+  p_hat_nb_b<-predict(nb_fit,newdata=test_set,type="raw")[,2]
+  y_hat_nb_b<-ifelse(p_hat_nb_b>0.5,1,0)
+  pred_class_table <- rbind(pred_class_table, y_hat_nb_b)
+}
+
+p_hat_nb_b <- apply(pred_class_table,2,sum)/100
+y_hat_nb_b <- factor(ifelse(p_hat_nb_b > 0.5, 1, 0))
+
+confusionMatrix(as.factor(y_hat_nb_b), reference = test_set$timebinary,positive="1")
+
+# ROC curves
+roc_nb <- pROC::roc(test_set$timebinary,p_hat_nb)
+roc_nb_b <- pROC::roc(test_set$timebinary,p_hat_nb_b)
+p2 <- ggroc(list("nb"=roc_nb, "nb (bootstrapped)"=roc_nb_b))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves - Naive Bayes (men)") +
+  xlab("Specificity")+ylab("Sensitivity")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+## AUC
+pROC::auc(roc_nb)
+pROC::auc(roc_nb_b)
+```
+
+
+## Bootstrapping for Women
+
+```{r}
+# preparing the data
+# filter: 2020, Women, finish race
+datsecond <- dat %>% 
+  filter(dnf==0 & olympic=="Tokyo2020" & sex=="Women") %>%
+  dplyr::select(time_sec, case_pp, continent, age, gdp2020, prior_attend) 
+
+# convert categorical/binary variables into factors
+datsecond <- datsecond %>% 
+  mutate(continent=as.factor(continent), prior_attend=as.factor(prior_attend))
+
+# omit the rows with NA
+datsecond<-datsecond %>% filter(!is.na(time_sec))%>% filter(!is.na(case_pp))%>% filter(!is.na(continent))%>% filter(!is.na(age))%>% filter(!is.na(gdp2020))%>% filter(!is.na(prior_attend))
+
+# add the binary outcome variable
+cut <- 9339
+datsecond<-datsecond%>%
+  mutate(timebinary=ifelse(time_sec<cut,0,1)) %>%
+  mutate(timebinary=as.factor(timebinary))
+
+# split train (70%), test (30%)
+set.seed(1)
+x <- stratified(datsecond, "timebinary", 0.70, keep.rownames = TRUE)
+train_set <- x %>% dplyr::select(-rn)
+train_index <- as.numeric(x$rn)
+test_set <- datsecond[-train_index,]
+```
+
+
+### Decision Tree and Random Forest (Women)
+
+```{r}
+# Decision trees
+set.seed(1)
+tree_fit <- rpart(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_tree <- predict(tree_fit,newdata=test_set)[,2]
+y_hat_tree <- factor(ifelse(p_hat_tree>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_tree),reference=test_set$timebinary,positive="1")
+
+# Random Forest
+set.seed(1)
+rf_fit <- randomForest(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_rf <- predict(rf_fit,newdata=test_set,type="prob")[,2]
+y_hat_rf <- factor(ifelse(p_hat_rf>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_rf),reference=test_set$timebinary,positive="1")
+
+# ROC curves
+roc_tree <- pROC::roc(test_set$timebinary,p_hat_tree)
+roc_rf <- pROC::roc(test_set$timebinary,p_hat_rf)
+p3 <- ggroc(list("Decision Tree"=roc_tree, "Random Forest"=roc_rf))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves - tree (women)") +
+  xlab("Specificity")+ylab("Sensitivity")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+## AUC
+pROC::auc(roc_tree)
+pROC::auc(roc_rf)
+```
+
+### Naive Bayes and the Bootstrapped Version (Women)
+```{r}
+# Naive Bayes
+nb_fit <- naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = train_set)
+p_hat_nb<-predict(nb_fit, newdata=test_set, type="raw")[,2]
+y_hat_nb<-factor(ifelse(p_hat_nb>0.5,1,0))
+confusionMatrix(data=as.factor(y_hat_nb),reference=test_set$timebinary,positive="1")
+
+# bootstrapped version of Naive Bayes
+rows <- 1:49
+pred_class_table <- data.frame(matrix(ncol = nrow(test_set), nrow = 0))
+
+for(iter in 1:100){
+  # create the resample train set
+  sample_row <- sample(rows, size=85, replace = TRUE)
+  resample_train_set <- data.frame()
+  for(i in sample_row){
+    add_this <- train_set[i,]
+    resample_train_set <- rbind(resample_train_set, add_this)
+  }
+  nb_fit<-naiveBayes(timebinary ~ case_pp + continent + age + gdp2020 + prior_attend, data = resample_train_set)
+  p_hat_nb_b<-predict(nb_fit,newdata=test_set,type="raw")[,2]
+  y_hat_nb_b<-ifelse(p_hat_nb_b>0.5,1,0)
+  pred_class_table <- rbind(pred_class_table, y_hat_nb_b)
+}
+
+p_hat_nb_b <- apply(pred_class_table,2,sum)/100
+y_hat_nb_b <- factor(ifelse(p_hat_nb_b > 0.5, 1, 0))
+
+confusionMatrix(as.factor(y_hat_nb_b), reference = test_set$timebinary,positive="1")
+
+# ROC curves
+roc_nb <- pROC::roc(test_set$timebinary,p_hat_nb)
+roc_nb_b <- pROC::roc(test_set$timebinary,p_hat_nb_b)
+p4 <- ggroc(list("nb"=roc_nb, "nb (bootstrapped)"=roc_nb_b))+
+  theme(legend.title=element_blank())+
+  geom_segment(aes(x=1, xend=0,y=0,yend=1),color="black",linetype="dotted")+
+  ggtitle("ROC curves - Naive Bayes (women)") +
+  xlab("Specificity")+ylab("Sensitivity")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+## AUC
+pROC::auc(roc_nb)
+pROC::auc(roc_nb_b)
+```
+
+### ROC Curves
+
+The ROC curves comparing "decision tree and random forest", "Naive Bayes and the bootstrapped version of Naive Bayes", for men and women, are as follows. 
+
+In the case of "decision tree and random forest" for women, we can see that the ROC curve moves towards the upper left corner after bootstrapping. However, in the other three cases, the ROC curves do not seem to be very different before and after bootstrapping.
+
+
+```{r}
+p1
+p2
+p3
+p4
+```
+
+
+### Summary Statistics
+
+Here, we list out some summary statistics from the confusion matrix, for men and women, respectively. 
+
+```{r}
+# Table for men's models
+Men_models <- c("Tree", "Random Forest", "NB", "NB (bootstrapped)")
+Accuracy <- c("0.5455", "0.5455", "0.5909", "0.5455")
+Sensitivity <- c("0.5833", "0.6667", "0.7500", "0.6667")
+Specificity <- c("0.5000", "0.4000", "0.4000", "0.4000")
+PPV <- c("0.5833", "0.5714", "0.6000", "0.5714")
+NPV <- c("0.5000", "0.5000", "0.5714", "0.5000")
+AUC <- c("0.5625", "0.5458", "0.65", "0.6167")
+
+male_df <- data.frame(Men_models, Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+
+kable(male_df, format = "markdown", digits = 2)
+
+# Table for men's models
+Women_models <- c("Tree", "Random Forest", "NB", "NB (bootstrapped)")
+Accuracy <- c("0.5909", "0.5909", "0.4545", "0.4545")
+Sensitivity <- c("0.6364", "0.5455", "0.5455", "0.5455")
+Specificity <- c("0.5455", "0.6364", "0.3636", "0.3636")
+PPV <- c("0.5833", "0.6000", "0.4615", "0.4615")
+NPV <- c("0.6000", "0.5833", "0.4444", "0.4444")
+AUC <- c("0.5826", "0.6777", "0.5207", "0.4793")
+
+female_df <- data.frame(Women_models, Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+
+kable(female_df, format = "markdown", digits = 2)
+```
+
+### Discussion and Comparison
+
+We can now compare the result of decision tree to random forest, and Naive Bayes to the bootstrapped version of Naive Bayes. If we focus on AUC, we discovered that bootstrapping is only helpful in one of the four comparisons: the women case of tree and random forest. The AUC increases from 0.5826 to 0.6777. For the other 3 cases, bootstrapping either doesn't have effect on the performance accuracy or is making the result even less accurate. 
+
+This result is quite different from our expectation, since we are hoping that bootstrapping can improve the performance of our classification models a bit. Perhaps this is still due to our small sample size problem, and it may be better if we could have a larger dataset.
+
