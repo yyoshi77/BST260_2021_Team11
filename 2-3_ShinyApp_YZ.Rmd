@@ -1,6 +1,6 @@
 ---
-title: "Shiny App Part"
-author: "Yuki Zhong (BST260 Group11)"
+title: "Shiny App Section"
+author: "Yuki Zhong (BST260 Group 11)"
 output: html_document
 ---
 
