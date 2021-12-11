@@ -1,0 +1,558 @@
+---
+title: "Visualization Part"
+author: "Marie Wu (BST260 Group11)"
+output: html_document
+---
+
+## Visualization to Explore the Impact of the COVID-19 Pandemic on Olympic Marathon Performances
+
+After we defined our variables and completed our data collection in marathon results at the Rio 2016 and Tokyo 2020 games, we further explored the basic composition of our data. In addition, we also explored how athletes' marathon finishing times were similar or different in distribution across 2016 and 2020, as well as the impact of the COVID-19 pandemic on finishing times.
+
+The results of attendance by gender and by continent across 2016 and 2020 are shown in Graph 1 and Graph 2, respectively. The distributions of finishing times at the Rio and Tokyo games for both genders are shown in Graph 3 and Graph 4. 
+
+The marathon results at the Rio and Tokyo games for both genders were compared by continent in Graph 5 and Graph 6. Graph 7A and 7B show the scatterplots for eyeballing men's marathon results versus GDP across 2016 and 2020; likewise, Graph 8A and 8B show the scatterplots for eyeballing women's marathon results versus GDP across 2016 and 2020. In Graphs 9 and 10, we explored the relationship between top finishing athletes and COVID-19 severity within the countries they represent via scatterplots and bar charts.
+
+Graphs 11 and 12 allow us to view the countries from which the top 20 marathon athletes in both genders originate on COVID-19 heatmaps across 2016 and 2020.
+
+```{r message=FALSE, warning=FALSE}
+load("data.RData")
+library(dplyr)
+library(tidyverse)
+library(gridExtra)
+library(dslabs)
+library(ggplot2)
+library(ggthemes)
+library(scales)
+library(lubridate)
+library(ggpubr)
+
+#Naming df by 2016 2020 Men Female
+data(dat)
+dat_16m <- dat %>% filter(olympic == "Rio2016", sex=="Men")
+dat_16f <- dat %>% filter(olympic == "Rio2016", sex=="Women")
+dat_20m <- dat %>% filter(olympic == "Tokyo2020", sex=="Men")
+dat_20f <- dat %>% filter(olympic == "Tokyo2020", sex=="Women")
+dat_Male<- dat %>% filter(sex=="Men")
+dat_Female<- dat %>% filter(sex=="Women")
+```
+
+## Graph 1. Bar Chart - Athlete Attendance by Gender, 2016 vs. 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 1. Bar Chart - Athlete Attendance by Gender, 2016 vs. 2020
+
+dat %>% ggplot(aes(x =  sex, fill= olympic)) +
+  geom_bar(position = position_dodge2(), aes(group = olympic)) + 
+  xlab(" ")+ 
+  ylab("Attendance") + 
+  ggtitle("Athlete Attendance by Gender, 2016 vs. 2020") +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge2(width = .9), size = 2.5)
+```
+
+From this bar chart, we can see that when comparing the Tokyo 2020 Olympics to the Rio 2016 Olympics, athlete attendance for the marathon in Tokyo 2020 decreased in total number and across both genders. 
+
+In the Rio games, athlete attendance was 155 for men, and 157 for women. In the Tokyo games, athlete attendance was 106 for men, and 88 for women. The overall decrease was 118 persons, and 49 for men and 69 for women.
+
+We further explored whether the decrease in athlete attendance was different by continent. 
+
+This graph does not include Refugee Olympic Team.
+
+
+## Graph 2. Bar Chart - Athlete Attendance by Continent, 2016 vs. 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 2.  Bar Chart - Athlete Attendance by Continent, 2016 vs. 2020
+
+dat %>% filter(!is.na(continent))%>%
+  ggplot(aes(x = continent, fill= olympic)) +
+  geom_bar(position = position_dodge2(), aes(group = olympic)) +
+  xlab(" ")+ 
+  ylab("Attendance") + 
+  ggtitle("Athlete Attendance by Continent, 2016 vs. 2020") +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge2(width = .9), size = 2.5)
+```
+
+From this bar chart, we can see that for most continents, including Africa, Asia, Europe, and South Africa, athlete attendance in Tokyo decreased by 17 - 35 persons compared to Rio, there was no change in attendance for North America, and a slight increase for Oceania. 
+
+Graph does not include athletes from the Refugee Olympic Team.
+
+
+## Graph 3. Histogram with and Boxplot - Men's Marathon Results, Rio 2016 vs. Tokyo 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 3. Histogram with and Boxplot - Men's Marathon Results, Rio 2016 vs. Tokyo 2020
+
+#a Scatter plot + Box plot
+ps_Male <- dat_Male %>% filter(!is.na(continent))%>%
+  ggplot(aes(olympic, time)) + 
+  geom_boxplot(coef=3, color = "black") + 
+  scale_y_time()+
+  geom_jitter(width = 0.1, alpha = 0.2, color = "coral") +
+  ylab("Finishing Time") + xlab(" ") 
+
+ps_Female <- dat_Female %>% filter(!is.na(continent))%>%
+  ggplot(aes(olympic, time)) + 
+  geom_boxplot(coef=3, color = "black") + 
+  geom_jitter(width = 0.1, alpha = 0.2, color = "#00AFBB") +
+  scale_y_time()+
+  ylab("Finishing Time") + xlab(" ")
+
+#b Histogram
+ph_Male <- dat_Male  %>% filter(!is.na(continent)) %>%
+  ggplot(aes(time, ..density..)) +
+  geom_histogram(binwidth = 70, color = "black") +
+  scale_x_time()+
+  facet_grid(olympic~., scales = "fixed") + 
+  xlab(" ")
+
+ph_Female <- dat_Female %>% filter(!is.na(continent)) %>%
+  ggplot(aes(time, ..density..)) +
+  geom_histogram(binwidth = 70, color="black") +
+  scale_x_time()+
+  facet_grid(olympic~., scales = "fixed")+ 
+  xlab(" ")
+
+#c Combined grid
+SBH_male <- grid.arrange(ps_Male, ph_Male, ncol = 2, top = "Men's Marathon Results, Rio 2016 vs. Tokyo 2020" )
+
+```
+
+On the left of the graph, we can see that the y-axis of the box plot is represented by marathon finishing time. The lower the finishing time, the better the rank. The 25th quartile, median, and 75th quartile finishing times all improved.
+
+On the right, the stacked histograms show the frequency distribution of athlete finishing time.  
+
+
+## Graph 4. Histogram with and Boxplot - Women's Marathon Results, Rio 2016 vs. Tokyo 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 4. Histogram with and Boxplot - Women's Marathon Results, Rio 2016 vs. Tokyo 2020
+
+SBH_female <- grid.arrange(ps_Female, ph_Female, ncol = 2, top = "Women's Marathon Results, Rio 2016 vs. Tokyo 2020" )
+
+```
+
+On the left of the graph, we can see that the y-axis of the box plot is represented by marathon finishing time. The lower the finishing time, the better the rank. The 25th quartile, median, and 75th quartile finishing times all improved.
+
+On the right, the stacked histograms show the frequency distribution of athlete finishing time. 
+
+
+## Graph 5. Box Plot - Men's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 5. Box Plot - Men's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020
+
+dat_16m_pc <- dat_16m %>% select(country, time, olympic, gdp2016, continent, case_pp) %>% rename(`gdp`=`gdp2016`)
+dat_20m_pc <- dat_20m %>% select(country, time, olympic, gdp2020, continent, case_pp) %>% rename(`gdp`=`gdp2020`)  
+
+male_join <- full_join(dat_16m_pc, dat_20m_pc)
+
+dat_gdp_male <- male_join %>% filter(!is.na(continent)) %>%
+  ggplot(aes(continent, time, fill = olympic)) +
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_time(breaks = seq(6000,12000,1200)) + 
+  ylab("Finishing Time") + xlab(" ")+ 
+  ggtitle("Men's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020 ")
+dat_gdp_male 
+```
+
+From this box plot, we can see that, for athletes from Africa, Asia, Europe, and South America, men's 25th quartile, median, and 75th quartile finishing times improved in Tokyo 2020 relative to Rio 2016. 
+
+Conversely, for athletes from both North America and Oceania, median finishing times regressed.
+
+
+## Graph 6. Box Plot - Women's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020
+
+
+```{r message=FALSE, warning=FALSE}
+# Graph 6. Box Plot - Women's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020
+dat_16f_pc <- dat_16f %>% select(country, time, olympic, gdp2016, continent, case_pp) %>% rename(`gdp`=`gdp2016`)
+dat_20f_pc <- dat_20f %>% select(country, time, olympic, gdp2020, continent, case_pp) %>% rename(`gdp`=`gdp2020`)  
+
+female_join <- full_join(dat_16f_pc, dat_20f_pc)
+
+dat_gdp_female <- female_join %>% filter(!is.na(continent)) %>%
+  ggplot(aes(continent, time, fill = olympic)) +
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_time(breaks = seq(6000,12000,1200)) + 
+  ylab("Finishing Time") + xlab(" ")+ 
+  ggtitle("Women's Marathon Results by Continent, Rio 2016 vs. Tokyo 2020")
+
+dat_gdp_female
+
+```
+
+From this box plot, for athletes from Africa, Asia, Europe, and South America, women's finishing times improved in Tokyo 2020 compared to Rio 2016, similar to what was seen in the men's finishing times. In addition, times from North America improved. In Oceania, median finishing times regressed.
+
+
+## Graph 7. Scatterplots: Men's Marathon Results by GDP in 2016 and 2020
+
+```{r message=FALSE, warning=FALSE}
+# Graph 7. Scatterplots: Men's Marathon Results by GDP in 2016 and 2020
+
+# 7.A Scatterplots: Men's Marathon Results by GDP in 2016
+p_16mgdp <- dat_16m %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(gdp2016/1000000000, time, col = continent)) + 
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=8448, color="blue" ) +
+  geom_hline("Top 10", yintercept=7951, color="coral") +
+  scale_x_continuous(trans = "log10", labels = comma) + 
+  scale_y_time()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("GDP for 2016 (billion USD)")+
+  ylab("Finishing Time") +
+  geom_label(aes(4,8447,label = "Upper Half" , vjust = -0.3), color="blue") +
+  geom_label(aes(3,7950,label ="Top 10" , vjust = -0.3), color="coral" ) +
+  ggtitle("Men's Marathon Results by GDP in 2016")
+```
+
+### Graph 7.A Men's Marathon Results by GDP in 2016
+```{r message=FALSE, warning=FALSE}
+p_16mgdp
+```
+
+```{r message=FALSE, warning=FALSE}
+# 7.B Scatterplots: Men's Marathon Results by GDP in 2020
+
+p_20mgdp <- dat_20m %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(gdp2016/1000000000, time, col = continent)) + 
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=8240, color="blue" ) +
+  geom_hline("Top 10", yintercept=7934, color="coral") +
+  scale_x_continuous(trans = "log10", labels = comma) + 
+  scale_y_time() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("GDP for 2020 (billion USD)")+
+  ylab("Finishing Time") +
+  geom_label(aes(5,8239,label = "Upper Half" , vjust = -0.3), color="blue") +
+  geom_label(aes(3,7933,label ="Top 10" , vjust = -0.3), color="coral" ) +
+  ggtitle("Men's Marathon Results by GDP in 2020")
+```
+
+### Graph 7.B Men's Marathon Results by GDP in 2020
+```{r message=FALSE, warning=FALSE}
+p_20mgdp
+```
+
+
+By eyeballing the above two scatterplots, let's explore the relationship between the GDPs of the countries where athletes originate and the finishing time. 
+
+Here, we plot the x-axis with the GDP of the country where athletes originate from and the y-axis with finishing time. Each point on the plot represents an athlete who finished.
+At the Rio Olympics, 155 male athletes attended the marathon, and 139 finished. Athletes who qualified in the upper half completed the race within 8447 seconds (2 hrs 20 mins 47 secs). Athletes who finished top 10 did so within 7949 seconds (2 hrs 12 mins 29 secs).
+
+At the Tokyo Olympics, 106 male athletes attended the marathon, and 76 finished. Athletes who qualified in the upper half completed their race within 8239 seconds (2 hrs 17 mins 19 secs). Athletes who finished top 10 did so within 7933 seconds (2 hrs 12 mins 13 secs).
+
+Since the athletes who attended the Rio and Tokyo games were mostly different, and considering inflation may have affected GDP between 2016 and 2020, we used separate scatterplots to explore the differences or similarities of the two plots. By comparing 2016 and 2020 men's scatterplots, we can see that the distribution in 2016 is more evenly spread along the x-axis than in 2020. GDPs of the countries where athletes originated from were higher in 2020 among both the overall male marathon athlete population and those who qualified the upper half.
+
+
+## Graph 8. Scatterplots: Women's Marathon Results by GDP in 2016 and 2020
+
+```{r message=FALSE, warning=FALSE}
+## Graph 8. Scatterplots: Women's Marathon Results by GDP in 2016 and 2020
+
+# 8.A Scatterplots: Women's Marathon Results by GDP in 2016 
+
+p_16fgdp <- dat_16f %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(gdp2016/1000000000, time, col = continent)) + 
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=9749, color="blue" ) +
+  geom_hline("Top 10", yintercept=8917, color="coral") +
+  scale_x_continuous(trans = "log10", labels = comma) + 
+  scale_y_time() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("GDP for 2016 (billion USD)")+
+  ylab("Finishing Time") +
+  geom_label(aes(7,9748,label = "Upper Half" , vjust = -0.3), color="blue") +
+  geom_label(aes(6,8916,label ="Top 10" , vjust = -0.3), color="coral" ) +
+  ggtitle("Women's Marathon Results by GDP in 2016")
+```
+
+### Graph 8.A Women's Marathon Results by GDP in 2016
+
+```{r message=FALSE, warning=FALSE}
+p_16fgdp
+```
+
+```{r message=FALSE, warning=FALSE}
+# 8.B Scatterplots: Women's Marathon Results by GDP in 2020
+
+p_20fgdp <- dat_20f %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(gdp2020/1000000000, time, col = continent)) + 
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=9339, color="blue" ) +
+  geom_hline("Top 10", yintercept=9074, color="coral") +
+  scale_x_continuous(trans = "log10", labels = comma) + 
+  scale_y_time() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("GDP for 2020 (billion USD)")+
+  ylab("Finishing Time") +
+  geom_label(aes(3,9340,label = "Upper Half" , vjust = -0.3), color="blue") +
+  geom_label(aes(3,9075,label ="Top 10" , vjust = -0.3), color="coral" ) +
+  ggtitle("Women's Marathon Results by GDP in 2020")
+```
+
+### Graph 8.B Women's Marathon Results by GDP in 2020
+
+```{r message=FALSE, warning=FALSE}
+p_20fgdp
+```
+
+From the above two scatterplots we can see there is a more even distribution of marathon athlete finishing time along the x-axis (GDP) in 2016. 
+
+At the Rio Olympics, 157 female athletes attended the marathon, and 133 finished. Athletes who qualified in the upper half completed the race within 9748 seconds (2 hrs 42 mins 28 secs). Athletes who finished top 10 did so within 8916 seconds (2 hrs 28 mins 36 secs).
+
+At the Tokyo Olympics, 88 female athletes attended the marathon, and 73 finished. Athletes who qualified in the upper half completed their race within 9339 seconds (2 hrs 35 mins 39 secs). Athletes who finished top 10 did so within 9074 seconds (2 hrs 31 mins 14 secs).
+
+Similarly, we used separate scatterplots to explore the differences or similarities of the two plots. By comparing 2016 and 2020 women's scatterplots, we can see that the distribution in 2016 is more evenly spread along the x-axis than in 2020. GDPs of the countries where athletes originated from were higher in 2020 among both the overall female marathon athlete population and those who qualified the upper half.
+
+
+
+
+## Graph 9. Men's and Women's Marathon Results by COVID-19 Cases Per Capita
+
+```{r message=FALSE, warning=FALSE}
+# Graph 9. Men's and Women's Marathon Results by COVID-19 Cases Per Capita
+
+p_20fcasepp <- dat_20f %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(case_pp, time, col = continent)) +
+  geom_point(alpha = 0.5)  + 
+  geom_hline("First Half", yintercept=9340, color="blue") + 
+  geom_hline("Top 10", yintercept=9075, color="coral") +
+  scale_y_time() + 
+  xlab("Women")+
+  ylab("")+
+  geom_label(aes(0.14,9340,label = "Upper Half" , vjust = -0.3), color="blue" , size = 3) +
+  geom_label(aes(0.14,9075,label ="Top 10" , vjust = -0.3), color="coral" , size = 3) 
+ 
+p_20mcasepp <- dat_20m %>% filter(!is.na(continent)) %>% 
+  ggplot(aes(case_pp, time, col = continent)) +
+  geom_point(alpha = 0.5)  + 
+  geom_hline("Upper Half", yintercept=8240, color="blue") + 
+  geom_hline("Top 10", yintercept=7934, color="coral")  +
+  scale_y_time() + 
+  xlab("Men")+
+  ylab("") +
+  geom_label(aes(0.14,8240,label = "Upper Half" , vjust = -0.3), color="blue", size = 3) +
+  geom_label(aes(0.14,7934,label ="Top 10" , vjust = -0.3), color="coral", size = 3 ) 
+
+arrangedplot <- ggarrange(p_20mcasepp, p_20fcasepp,common.legend = TRUE )
+annotate_figure(arrangedplot,
+               top = text_grob("Men's and Women's Marathon Results by COVID-19 Cases Per Capita", color = "black", size = 12),
+               left = text_grob("Finishing Time", rot = 90),
+               bottom = text_grob("COVID-19 Cases Per Capita", color = "black")) 
+
+```
+
+Here, the x-axis represents the total cumulative number of COVID-19 cases in countries of athlete origin divided by country population, from the beginning of the pandemic until July 22, 2021. The y-axis represents the marathon finishing time at the Tokyo 2020 games.
+
+Here, we can see from the scatterplots that, among those who were able to qualify in the upper half, there were M-shaped distributions for both genders, suggestive of the fact that athletes who finished in the upper half came from countries of both high and low COVID-19 cases per capita. 
+
+In women, among the top 10, more athletes came from countries with fewer COVID-19 cases per capita. In men, we do not see this trend. Yet, while viewing these scatterplots, we should keep in mind issues such as under-reporting of COVID-19 cases or variations in case-compiling methods in different countries.
+
+
+
+## Graph 10. Men's and Women's Upper Half Marathon Finishers by COVID-19 Cases Per Capita
+
+
+```{r message=FALSE, warning=FALSE}
+# Graph 10 Men's and Women's Upper Half Marathon Finishers by COVID-19 Cases Per Capita
+#Top half +severe 
+top_half_severity_m20 <- dat_20m %>% filter(!is.na(time)) %>% filter(!is.na(case_pp)) %>% 
+  mutate(top_half = ifelse(rank((time_sec))<=38, "Upper 50% Place","Lower 50% Place" )) %>% 
+  mutate(severe = ifelse(case_pp <= 0.0472, "Case Count Below Median", "Case Count Above Median"))  
+
+top_half_severity_f20 <- dat_20f %>% filter(!is.na(time) ) %>% 
+  mutate(top_half= ifelse(rank((time_sec))<=37, "Upper 50% Place" , "Lower 50% Place")) %>% 
+  mutate(severe= ifelse(case_pp <= 0.0472, "Case Count Below Median", "Case Count Above Median"))  
+
+#define top half severity
+top_half_severity <- dat%>% filter(rank((case_pp))<=253) %>% arrange(.,case_pp)
+#Use 0.0472 to -- case severity
+ 
+PP1 <- top_half_severity_m20 %>% 
+  ggplot(aes(x = as.factor(top_half), fill= as.factor(severe))) +
+  geom_bar(position = position_stack(), aes(group = as.factor(severe))) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5), size = 2.5) +
+  xlab("Men")+ 
+  ylab("") 
+
+PP1<- PP1 + guides(fill=guide_legend(title="COVID-19 Case Count Per Capita"))
+
+PP2 <- top_half_severity_f20 %>% ggplot(aes(x = as.factor(top_half), fill= as.factor(severe))) +
+  geom_bar(position = position_stack(), aes(group = as.factor(severe))) +
+  geom_text(stat = "count", aes(label = ..count..), position = position_stack(vjust = 0.5), size = 2.5) +
+  xlab("Women")+ 
+  ylab("") 
+
+P2<- PP2 + guides(fill=guide_legend(title="COVID-19 Case Count Per Capita"))
+
+arrange1<- ggarrange(PP1, PP2,  common.legend = TRUE, legend = "bottom") 
+annotate_figure(arrange1,
+               top = text_grob("Men's and Women's Upper Half Marathon Finishers by COVID-19 Cases Per Capita", color = "black", size = 13),
+               left = text_grob("Athlete Count", rot = 90)) 
+ 
+```
+
+Here, the x-axis represents the upper or lower 50% in places achieved by male and female athletes. The y-axis represents athlete counts. The colored bars represent the number of athletes from countries below or above the median COVID-19 case count per capita. The median COVID-19 case count per capita was defined by the median of the total cumulative number of COVID-19 cases in countries of athlete origin divided by country population, from the beginning of the pandemic until July 22, 2021, from all samples in the dataset.
+
+We can see that, in men, for both upper and lower half qualifiers, roughly equal numbers of athletes were from countries below and above the median cases per capita. 
+
+In women, however, more athletes who qualified in the upper half were from countries with a below-median case per capita.
+
+
+
+## Graph 11. Countries of Top 20 Male Finishers on COVID-19 Heatmap
+
+
+```{r message=FALSE, warning=FALSE}
+##Graph 11. Countries of Top 20 Male Finishers on COVID-19 Heatmap
+#Top 20 codes 
+top20_20m <- dat_20m %>% filter(rank((time_sec))<=20, !is.na(continent)) %>%  group_by(country) %>% arrange(.,country)%>% count() %>%  as.data.frame(top20_20m)
+
+top20_20m <-top20_20m  %>% mutate(
+  lat = c(50.503887,35.861660,4.570868,15.339000, 46.6487132, 31.046051, 41.87194, 36.204824, -0.023559, 31.791702, 52.132633, 40.463667, -6.369028, 37.09024), 
+  long=c(4.469936,104.195396,-74.297333, 38.937111, 2.6215658, 34.851612, 12.56738, 138.252924, 37.906193, -7.09262, 5.291266, -3.74922, 34.888822, -95.712891 ))
+
+top20_16m <- dat_16m %>% filter(rank((time_sec))<=20, !is.na(continent)) %>%  group_by(country) %>% arrange(.,country)%>% count() %>%  as.data.frame(top20_16m)
+
+top20_16m <-top20_16m  %>% mutate(
+  lat = c( -14.235004	,56.130366 , 11.825138 , -1.831239 , 15.179384, 9.145	, 		55.378051, 36.204824, -0.023559, 52.132633,60.472024, 46.818188, -6.369028, 38.963745, 	1.373333, 48.379433, 37.09024	), 
+  long=c( -51.92528	, -106.346771	, 42.590275 , -78.183406, 39.782334, 40.489673, -3.435973, 138.252924, 37.906193, 5.291266, 8.468946, 8.227512, 34.888822, 35.243322, 32.290275, 31.16558, -95.712891))
+
+top20_20f <- dat_20f %>% filter(rank((time_sec))<=20, !is.na(continent)) %>%  group_by(country) %>% arrange(.,country)%>% count() %>%  as.data.frame(top20_20f)
+
+top20_20f <-top20_20f  %>% mutate(
+  lat = c(-25.274398, 25.930414, 53.709807, 56.130366, 9.145, 51.165691, 36.204824, -0.023559	, -29.609988, -22.95764, 51.919438 , -30.559482	, 46.818188	, 1.373333 , 37.09024 ), 
+  long= c( 133.775136, 50.637772, 27.953389, -106.346771, 40.489673,  10.451526, 138.252924, 37.906193 , 28.233608, 18.49041	, 19.145136	, 22.937506, 8.227512, 32.290275,-95.712891 ))
+
+top20_16f <- dat_16f %>% filter(rank((time_sec))<=20, !is.na(continent)) %>%  group_by(country) %>% arrange(.,country)%>% count() %>%  as.data.frame(top20_16f)
+
+top20_16f <-top20_16f  %>% mutate(
+  lat = c( -25.274398, 25.930414, 53.709807	,  9.145 , 53.41291, 41.87194 , 36.204824, -0.023559	, 56.879635, 55.169438, 40.339852, -9.189967 , 39.399872	, 37.09024 ), 
+  long= c(  133.775136, 50.637772 , 27.953389 ,40.489673, -8.24389	,12.56738, 138.252924, 37.906193 , 24.603189, 23.881275, 127.510093, -75.015152	,  -8.224454	, -95.712891))
+
+library(zoo)
+library(maps)
+world_map = map_data("world")
+jhu <- read_csv("time_series_covid19_confirmed_global.csv")
+# Reshape to long format and convert the dates to date types
+# Your code here
+jhu_long <- jhu %>% gather(date, cases, `1/22/20`:`10/31/20`)
+jhu_long <- jhu_long %>% mutate(date = mdy(date))
+#class(jhu_long$date)
+# Sum up the number of cases within each country and date
+# Your code here
+jhu_sum <- jhu_long %>% 
+   select(`Country/Region`, date, cases)  %>% 
+   group_by(`Country/Region`, date) %>% 
+   summarize(total_cases = sum(cases, na.rm=TRUE), .groups = "drop") %>%
+   ungroup()
+# Calculate 7-day rolling average of new cases
+# Add 7-day rolling average of new cases to data frame from question 5
+jhu_sum <- jhu_sum %>% 
+   group_by(`Country/Region`) %>%
+   arrange(date) %>%
+   mutate(cases_increase = total_cases - lag(total_cases)) %>% 
+   ungroup() %>% 
+   arrange(`Country/Region`)
+
+jhu_sum <- jhu_sum %>% 
+   group_by(`Country/Region`) %>%
+   arrange(date) %>%
+   mutate(cases_7rolling = rollmean(cases_increase, k = 7, fill = NA)) %>% 
+   ungroup() %>% 
+   arrange(`Country/Region`)
+ 
+uid_lookup_table = read_csv("UID_ISO_FIPS_LookUp_Table.csv")
+ 
+# Extract the country-level populations and use nice names
+uid_pop <- uid_lookup_table %>% 
+  subset(is.na(Province_State)) %>% 
+  rename(country = "Country_Region", population = "Population") %>% 
+  select(country, population)
+# Join the country populations (uid_pop) to the Johns Hopkins data
+jhu_sum <- left_join(jhu_sum, uid_pop, by= c("Country/Region" = "country"))
+# Create a new cases per million variable (7-day average)
+jhu_sum <- jhu_sum %>% 
+   mutate(new_cases7_per_million = cases_7rolling /(population/1000000))
+# Key for discrepant country names in Johns Hopkins and world map data
+country_key = data.frame(rbind(c("Antigua and Barbuda", "Antigua"), 
+                               c("Burma", "Myanmar"), 
+                               c("Cabo Verde", "Cape Verde"), 
+                               c("Congo (Kinshasa)", 
+                                 "Democratic Republic of the Congo"), 
+                               c("Congo (Brazzaville)", 
+                                 "Republic of Congo"), 
+                               c("Cote d'Ivoire", "Ivory Coast"), 
+                               c("Czechia", "Czech Republic"), 
+                               c("Eswatini", "Swaziland"), 
+                               c("Holy See", "Vatican"), 
+                               c("Korea, South", "South Korea"), 
+                               c("North Macedonia", "Macedonia"), 
+                               c("Saint Kitts and Nevis", "Saint Kitts"), 
+                               c("Saint Vincent and the Grenadines", 
+                                 "Saint Vincent"), 
+                               c("Taiwan*", "Taiwan"), 
+                               c("Trinidad and Tobago", "Trinidad"), 
+                               c("United Kingdom", "UK"), 
+                               c("US", "USA")))
+names(country_key) = c("JHU", "map")
+
+# Create named vector for recoding country names
+recode_map <- country_key$JHU; names(recode_map) = country_key$map
+# Recode country names in world map data to match with Johns Hopkins
+world_map <- world_map %>%
+  mutate(region = recode(region, !!!recode_map))
+# Filter Johns Hopkins data for July 1, 2020 and join with world_map data frame.
+# When joining, remember that the variable referring to countries has a different name in the JHU and world map data frames.
+jhu_0701 <- jhu_sum %>%
+   filter(date == "2020-07-01") 
+jhu_0701 <- left_join(jhu_0701, world_map, by= c("Country/Region" = "region"))
+# Heatmap of cases per million on Jul 1, 2020.
+library(RColorBrewer)
+mappie<- jhu_0701 %>% 
+  ggplot() +
+   geom_polygon(color = "black", aes(x = long, y = lat, group = group, fill=new_cases7_per_million)) +  coord_fixed(1.3)  +
+   theme(panel.grid.major = element_blank(), 
+         panel.background = element_blank(),
+         axis.title = element_blank(), 
+         axis.text = element_blank(),
+         axis.ticks = element_blank()) +
+   scale_fill_gradientn(colors = brewer.pal(8, "Oranges"), trans = "sqrt")  +  
+   theme(plot.title = element_text(hjust = 0.5)) +
+   labs(fill="Cases per million")
+mappie_1<-mappie + 
+   ggtitle("Countries of Top 20 Male Finishers on COVID-19 Heatmap") +
+  geom_point(data= top20_20m, aes(x=long, y=lat, size=n , color='2020'), alpha=0.5) + 
+  geom_point(data= top20_16m, aes(x=long, y=lat, size=n, color='2016'), alpha=0.7) +
+  scale_color_manual(name='Year',
+                     breaks=c('2020', '2016'),
+                     values=c('2020'='blue', '2016'='green'))
+
+mappie_2<-mappie + 
+   ggtitle("Countries of Top 20 Female Finishers on COVID-19 Heatmap")+ 
+  geom_point(data= top20_20f, aes(x=long, y=lat, size=n , color='2020'), alpha=0.5) + 
+  geom_point(data= top20_16f, aes(x=long, y=lat, size=n, color='2016'), alpha=0.7) +
+  scale_color_manual(name='Year',
+                     breaks=c('2020', '2016'),
+                     values=c('2020'='blue', '2016'='green'))
+
+mappie_1
+```
+ 
+On this COVID-19 heatmap, countries represented by top 20 male marathon finishers are represented by a shade of orange, graded from light to dark, to reflect each country's severity of COVID-19 at the beginning of July 2021. Severity is calculated by the 7-day average of COVID-19 cases on July 1st, 2021. The green dots are the top 20 male finishers at the 2016 games; the blue dots are the top 20 male finishers at the 2020 games; the size of the dots reflect the numbers of athletes who qualified in the top 20. This graph allows us to see the change in top 20 finishers and their represented countries across 2016 and 2020 on a COVID-19 heatmap.
+ 
+
+## Graph 12. Countries of Top 20 Female Finishers on COVID-19 Heatmap
+
+
+
+```{r message=FALSE, warning=FALSE}
+## Graph 12. Countries of Top 20 Female Finishers on COVID-19 Heatmap
+
+mappie_2  
+```
+
+On this COVID-19 heatmap, countries represented by top 20 female marathon finishers are represented by a shade of orange, graded from light to dark, to reflect each country's severity of COVID-19 at the beginning of July 2021. Severity is calculated by the 7-day average of COVID-19 cases on July 1st, 2021. The green dots are the top 20 female finishers at the 2016 games; the blue dots are the top 20 female finishers at the 2020 games; the size of the dots reflect the numbers of athletes who qualified in the top 20. This graph allows us to see the change in top 20 finishers and their represented countries across 2016 and 2020 on a COVID-19 heatmap.
+
