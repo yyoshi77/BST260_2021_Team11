@@ -5,7 +5,7 @@
 ### COVID-19 Pandemic and Olympics Marathon Performance - A Case Study Using Rio 2016 and Tokyo 2020 Data -
 
 ## About the project
-COVID-19 has impacted all over the world. The Olympics, Tokyo 2020, was not an exception. The objective of this project is to see differences in records for marathon games between pre- and post-pandemic periods. 
+The emergence of COVID-19 has impacted all over the world. The Olympics, Tokyo 2020, is not an exception. The objective of this project is to see differences in records for marathon games between pre- and post-pandemic periods. 
 
 ## About this GitHub
 The members contributed to their own sections. You can find a compiled .Rmd/html file named "1_Project_Summary" that includes all the sections. You can also find separated files that can work stand-alone, representing the work of the individual members. 
