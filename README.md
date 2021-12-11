@@ -2,7 +2,7 @@
 ### Group 11 members: Mariko Ando, Yi-Ting Tsai, Satoko Ugai, Marie Wu, Yusuke Yoshikawa and Yuki Zhong
 
 ## Project title
-# COVID-19 Pandemic and Olympics Marathon Performance - A Case Study Using Rio 2016 and Tokyo 2020 Data -
+### COVID-19 Pandemic and Olympics Marathon Performance - A Case Study Using Rio 2016 and Tokyo 2020 Data -
 
 ## About the project
 COVID-19 has impacted all over the world. The Olympics, Tokyo 2020, was not an exception. The objective of this project is to see differences in records for marathon games between pre- and post-pandemic periods. 
