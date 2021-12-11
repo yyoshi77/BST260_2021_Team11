@@ -6,7 +6,7 @@
 ### - A Case Study Using Rio 2016 and Tokyo 2020 Data -
 
 ## About the project
-The emergence of COVID-19 has impacted all over the world. The Olympics, Tokyo 2020, is not an exception. The objective of this project is to see differences in records for marathon games between pre- and post-pandemic periods. 
+The emergence of COVID-19 has impacted all over the world. The Olympics, Tokyo 2020, is not an exception. The objective of this project is to see differences in records for marathon games between pre- and post-pandemic periods, and also try to classify the athletes’ performance during the COVID-19 pandemic by using Tokyo 2020 data.
 
 ## About this GitHub
 The members contributed to their own sections. You can find a compiled .Rmd/html file named "1_Project_Summary" that includes all the sections. You can also find separated files whose names start with "2-X", which include the work of the individual members and can work stand-alone. 
