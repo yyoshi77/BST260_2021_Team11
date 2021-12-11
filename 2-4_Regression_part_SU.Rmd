@@ -1,6 +1,6 @@
 ---
 title: "Regression Section"
-author: "Satoko Ugai (BST260 Group11)"
+author: "Satoko Ugai (BST260 Group 11)"
 output: html_document
 ---
 
