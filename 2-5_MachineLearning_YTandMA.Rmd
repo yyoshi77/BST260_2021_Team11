@@ -1,7 +1,7 @@
 ---
-title: "Machine Learning Part"
+title: "Machine Learning Section"
+author: "Yi-Ting Tsai and Mariko Ando (Group 11)"
 output: html_document
-author: Yi-Ting Tsai and Mariko Ando
 ---
 
 ```{r setup, include=FALSE}
