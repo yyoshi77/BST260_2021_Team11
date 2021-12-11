@@ -1,6 +1,6 @@
 ---
-title: "Visualization Part"
-author: "Marie Wu (BST260 Group11)"
+title: "Visualization Section"
+author: "Marie Wu (BST260 Group 11)"
 output: html_document
 ---
 
