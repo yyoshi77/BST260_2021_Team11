@@ -1157,9 +1157,10 @@ From the interactive graphs, we can see that for both men and women, Tokyo 2020 
 
 ## 4. Regression (Satoko Ugai)
 
-```{r, warning=FALSE}
-#This study examined whether there was a difference in marathon records between pre- and post -COVI19 Olympics. A total of 506 athletes participating Rio2016 and Tokyo2020 Olympics were included in this study.The primary outcome was a marathon record. The predictor was Rio Olympic2016 (i.e.,pre-COVID19 Olympic) and Tokyo Olympic2020 (i.e.,post-COVID19 Olympic).
+### Regression ###
+This study examined whether there was a difference in marathon records between pre- and post -COVI19 Olympics. A total of 506 athletes participating Rio2016 and Tokyo2020 Olympics were included in this study.The primary outcome was a marathon record. The predictor was Rio Olympic2016 (i.e.,pre-COVID19 Olympic) and Tokyo Olympic2020 (i.e.,post-COVID19 Olympic).
 
+```{r, message=FALSE, warning=FALSE}
 # Libraries
 library(tidyverse)
 
@@ -1188,8 +1189,11 @@ tbl1<- tbl_summary(data=dat %>%
                   modify_caption("**Table 1. demographic Characteristics of all athletes**") 
 tbl1
 
-#Table1 summarizes demographic characteristics of all athletes according to Rio Olympic 2016 and Tokyo Olympic 2020. Two groups were compared regarding the demographic characteristics with t test for continuous variables and chi-squared test for categorical variables. There were 312 athletes who participated in the Rio Olympics and 194 athletes who participated in the Tokyo Olympics.The mean marathon record is 9165 seconds (2H32M45sec) in Rio Olympic and 8887 seconds (2H28M07sec) in Tokyo Olympic. The t test showed that a p-value was <0.001.We therefore conclude that there is a statistically significant difference between marathon records and Olympics among male athletes.The proportion of athletes who achieved a season's best and those who dropped out of the marathon race was higher in the Tokyo Olympics than that in the Rio Olympics. By continent, the percentages of athletes from Asia and South America was lower in the Tokyo Olympics than those in the Rio Olympics.
+```
+###(Result)
+Table1 summarizes demographic characteristics of all athletes according to Rio Olympic 2016 and Tokyo Olympic 2020. Two groups were compared regarding the demographic characteristics with t test for continuous variables and chi-squared test for categorical variables. There were 312 athletes who participated in the Rio Olympics and 194 athletes who participated in the Tokyo Olympics.The mean marathon record is 9165 seconds (2H32M45sec) in Rio Olympic and 8887 seconds (2H28M07sec) in Tokyo Olympic. The t test showed that a p-value was <0.001.We therefore conclude that there is a statistically significant difference between marathon records and Olympics among male athletes.The proportion of athletes who achieved a season's best and those who dropped out of the marathon race was higher in the Tokyo Olympics than that in the Rio Olympics. By continent, the percentages of athletes from Asia and South America was lower in the Tokyo Olympics than those in the Rio Olympics.
 
+```{r, message=FALSE, warning=FALSE}
 #making table2 men
 labels1 <-  list(time_sec ~ "Marathon record,mean sec (SD)", 
                 sb ~ "Season best, n (%)",
@@ -1209,8 +1213,11 @@ tbl2<- tbl_summary(data=dat %>%
                   modify_caption("**Table 2. demographic Characteristics of male athletes**") 
 tbl2
 
-#Table2 summarizes demographic characteristics of male athletes according to Rio Olympic 2016 and Tokyo Olympic 2020.The mean marathon record is 8542 seconds (2H22M22sec) in Rio Olympic and 8324 seconds (2H18M44sec) in Tokyo Olympic. The t test showed that a p-value was <0.001.We therefore conclude that there is a statistically significant difference between marathon records and Olympics among male athletes. The percentages of athletes who achieved season best and those who dropped out of the marathon race was significantly higher at the Tokyo Olympics than those at the Rio Olympics. Like the characteristics of overall athletes, the percentages of male athletes from Asia and South America was lower in the Tokyo Olympics than those in the Rio Olympics.
+```
+##(Result)
+Table2 summarizes demographic characteristics of male athletes according to Rio Olympic 2016 and Tokyo Olympic 2020.The mean marathon record is 8542 seconds (2H22M22sec) in Rio Olympic and 8324 seconds (2H18M44sec) in Tokyo Olympic. The t test showed that a p-value was <0.001.We therefore conclude that there is a statistically significant difference between marathon records and Olympics among male athletes. The percentages of athletes who achieved season best and those who dropped out of the marathon race was significantly higher at the Tokyo Olympics than those at the Rio Olympics. Like the characteristics of overall athletes, the percentages of male athletes from Asia and South America was lower in the Tokyo Olympics than those in the Rio Olympics.
 
+```{r, warning=FALSE}
 #making table3 women
 tbl3<- tbl_summary(data=dat %>% 
                    filter(sex=="Women") %>%
@@ -1223,12 +1230,13 @@ tbl3<- tbl_summary(data=dat %>%
                   all_categorical()~"chisq.test.no.correct")) %>%
                   modify_caption("**Table 3. demographic Characteristics of female athletes**") 
 tbl3
+```
+##(Result)
+Table3 summarizes demographic characteristics of female athletes according to Rio Olympic 2016 and Tokyo Olympic 2020. The mean marathon record is 9814 seconds (2H43M34sec) in Rio Olympic and 9473 seconds (2H37M53sec)in Tokyo Olympic. The t test showed that a p-value was <0.001. We conclude that there is a statistically significant difference between marathon records and Olympics among female athletes. Similar to the male athletes, the percentage of athletes who achieved a season's best time was higher in the Tokyo Olympics than that in the Rio Olympics, while there was no statistically significant difference in the percentage of athletes who drop out of the race between the two Olympics. The percentages of athletes from Asia and South America was lower in the Tokyo Olympics than those in the Rio Olympics similarly to overall and male athletes.
 
-#Table3 summarizes demographic characteristics of female athletes according to Rio Olympic 2016 and Tokyo Olympic 2020. The mean marathon record is 9814 seconds (2H43M34sec) in Rio Olympic and 9473 seconds (2H37M53sec)in Tokyo Olympic. The t test showed that a p-value was <0.001. We conclude that there is a statistically significant difference between marathon records and Olympics among female athletes. Similar to the male athletes, the percentage of athletes who achieved a season's best time was higher in the Tokyo Olympics than that in the Rio Olympics, while there was no statistically significant difference in the percentage of athletes who drop out of the race between the two Olympics. The percentages of athletes from Asia and South America was lower in the Tokyo Olympics than those in the Rio Olympics similarly to overall and male athletes.
+###Multivariable-adjusted linear regression###
 
-
-#Multivariable-adjusted linear regression
-
+```{r, message=FALSE, warning=FALSE}
 #male
 dat1=dat %>% 
      filter(sex=="Men")
@@ -1255,9 +1263,9 @@ as_gt() %>%
 #Making figure1
 #Marathon Record in Male athlete from Asian countries
 
-p3<-dat%>%filter(sex=="Men"|continent=="Asia") %>%
-  ggplot(aes(X=factor(olympic), y=time)) +
-  geom_boxplot(aes(olympic,time)) +
+p3<-dat %>% filter(sex=="Men"|continent=="Asia") %>%
+  ggplot(aes(X=factor(olympic), y=time_sec)) +
+  geom_boxplot(aes(olympic,time_sec)) +
   scale_y_time() +
   xlab("Olympic") +
   ylab("Records" ) +
@@ -1269,18 +1277,22 @@ p3
 #Marathon Record in Female athlete from Asian countries
 
 p4<-dat%>%filter(sex=="Female"|continent=="Asia") %>%
-  ggplot(aes(X=factor(olympic), y=time)) +
-  geom_boxplot(aes(olympic,time)) +
+  ggplot(aes(X=factor(olympic), y=time_sec)) +
+  geom_boxplot(aes(olympic,time_sec)) +
   scale_y_time() +
   xlab("Olympic") +
   ylab("Records" ) +
   ggtitle("Figure 2. Marathon Record in Female athlete from Asian countries")
 p4
 
-#After adjusting for season-best times, age, and continent in the multivariable logistic regression model, there is no statistically significant difference in marathon times between the Rio and Tokyo Olympics for both men and women (Table 4,5). There were fewer Asian athletes participating in the Tokyo Olympics compared to the Rio Olympics. In addition, the records of Asian athletes were faster in the Tokyo Olympics than in the Rio Olympics (Figure 1,2). For example, North Korea did not participate as a country in order to protect athletes from COVID19 infection. The three women runner from North Korean who did not participate the race had marathon world rankings of 80th, 123rd, and 158th respectively. The male runner from North Korean who did not participate the race was ranked 168th. It is possible that the world marathon rankings of North Korean athletes in the Tokyo Olympics were relatively lower than the athletes who participated in the Tokyo Olympics. Therefore, it is possible that there is a selection bias for the athletes who participated in the Tokyo Olympics in this study.
+```
 
-#Extend the model to evaluate whether there is evidence that the association between olympic and Maratho record is different for those with and without a lockdown policy
+##(Result and Discussion)
+After adjusting for season-best times, age, and continent in the multivariable logistic regression model, there is no statistically significant difference in marathon times between the Rio and Tokyo Olympics for both men and women (Table 4,5). There were fewer Asian athletes participating in the Tokyo Olympics compared to the Rio Olympics. In addition, the records of Asian athletes were faster in the Tokyo Olympics than in the Rio Olympics (Figure 1,2). For example, North Korea did not participate as a country in order to protect athletes from COVID19 infection. The three women runner from North Korean who did not participate the race had marathon world rankings of 80th, 123rd, and 158th respectively. The male runner from North Korean who did not participate the race was ranked 168th. It is possible that the world marathon rankings of North Korean athletes in the Tokyo Olympics were relatively lower than the athletes who participated in the Tokyo Olympics. Therefore, it is possible that there is a selection bias for the athletes who participated in the Tokyo Olympics in this study.
 
+####Extend the model to evaluate whether there is evidence that the association between olympic and Maratho record is different for those with and without a lockdown policy###
+
+```{r, message=FALSE, warning=FALSE}
 #Male
 
 model5<-lm(time_sec ~  olympic+sb+age+continent+olympic*lockdown,data=dat1)
@@ -1288,7 +1300,7 @@ summary(model5)
 model5 %>% 
   tbl_regression(intercept = TRUE)%>%
 as_gt() %>%
-  gt::tab_header(title = "Table 5. Multivariable-adjusted linear regression (evaluate the interaction by lockdown policy)",
+  gt::tab_header(title = "Table 6. Multivariable-adjusted linear regression (evaluate the interaction by lockdown policy)",
                  subtitle = "Men")
 
 #Female
@@ -1298,13 +1310,15 @@ summary(model6)
 model6 %>% 
   tbl_regression(intercept = TRUE)%>%
 as_gt() %>%
-  gt::tab_header(title = "Table 6. Multivariable-adjusted linear regression (evaluate the interaction by lockdown policy)",
+  gt::tab_header(title = "Table 7. Multivariable-adjusted linear regression (evaluate the interaction by lockdown policy)",
                  subtitle = "Women")
+```
+##(Result and Discussion)
+We evaluate whether there is evidence that the association between Olympics and marathon record is different between countries with and without a lockdown policy. The multivariable linear regression showed that a p-value was 0.7 for male and 0.4 for female. Therefore, we fail to reject the null hypothesis at a 0.05 level of significance and conclude that the association between marathon records and pre-/post-COVID19 Olympics does not significantly differ by the lockdown policy(Table 6,7). However, the sample size of countries without the lockdown policy is small. Therefore, it is possible that we didn't have enough power to detect a statistical interaction.
 
-#We evaluate whether there is evidence that the association between Olympics and marathon record is different between countries with and without a lockdown policy. The multivariable linear regression showed that a p-value was 0.7 for male and 0.4 for female. Therefore, we fail to reject the null hypothesis at a 0.05 level of significance and conclude that the association between marathon records and pre-/post-COVID19 Olympics does not significantly differ by the lockdown policy(Table 5,6). However, the sample size of countries without the lockdown policy is small. Therefore, it is possible that we didn't have enough power to detect a statistical interaction.
+###Extend the model to evaluate whether total COVID-19 cases per population of each country is a significant predictor for Marathon records###
 
-#Extend the model to evaluate whether total COVID-19 cases per population of each country is a significant predictor for Marathon records.
-
+```{r, message=FALSE, warning=FALSE}
 #Men
 dat3<-dat %>% 
   filter(sex %in% "Men"|olympic%in%"Tokyo2020")
@@ -1313,7 +1327,7 @@ summary(model7)
 model7 %>% 
   tbl_regression(intercept = TRUE)%>%
 as_gt() %>%
-  gt::tab_header(title = "Table 7. Multivariable-adjusted linear regression",
+  gt::tab_header(title = "Table 8. Multivariable-adjusted linear regression",
                  subtitle = "Men in Tokyo2020")
 
 #Women
@@ -1324,12 +1338,13 @@ summary(model8)
 model8 %>% 
   tbl_regression(intercept = TRUE)%>%
 as_gt() %>%
-  gt::tab_header(title = "Table 8. Multivariable-adjusted linear regression",
+  gt::tab_header(title = "Table 9. Multivariable-adjusted linear regression",
                  subtitle = "Women in Tokyo2020")
-
-#We evaluate whether total COVID-19 cases per population of each country is a significant predictor for Marathon records.The p-values were 0.3 in male athletes and 0.006 in female athletes(Table 7,8).Therefore, we can say that the total COVID-19 cases per each country is a significant predictor for Marathon records among female athletes.It is possible that the severer the infection was, the better the marathon records were.Therefore, female athletes who participated in the Tokyo Olympics might be highly physically capable of getting better records even though they were affected by the infection.
-
 ```
+
+##(Result and discussion)
+We evaluate whether total COVID-19 cases per population of each country is a significant predictor for Marathon records.The p-values were 0.3 in male athletes and 0.006 in female athletes(Table 8,9).Therefore, we can say that the total COVID-19 cases per each country is a significant predictor for Marathon records among female athletes.It is possible that the severer the infection was, the better the marathon records were.Therefore, female athletes who participated in the Tokyo Olympics might be highly physically capable of getting better records even though they were affected by the infection.
+
 
 ## 5. Machine Learning (Yi-Ting Tsai and Mariko Ando)
 
