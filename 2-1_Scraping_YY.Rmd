@@ -227,7 +227,7 @@ dat_16w <- dat_16w %>%
   mutate(rank = ifelse(rank=="—", NA, rank)) %>% 
   mutate(sb = ifelse(is.na(rank), NA, 0)) %>% 
   mutate(sb = ifelse(Notes %in% c("SB","NR","PB"), 1, sb)) %>% 
-  mutate(dnf = ifelse(time=="DNF" | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
+  mutate(dnf = ifelse(time %in% c("DNF","DNS") | Notes %in% c("DNF","DNS","DSQ"), 1, 0)) %>% 
   mutate(time = ifelse(dnf==1, NA, time)) %>% 
   mutate(time = lubridate::hms(time)) %>% 
   select(rank, athlete, country, time, sb, dnf)
@@ -448,22 +448,24 @@ dat %>% slice(1:8) %>% knitr::kable()
 ```
 
 #### Data information
-- `rank`: rank at each Olympic game
-- `athlete`: athlete names
-- `country`: area or country from which the athlete is
-- `time`: records at each Olympic game
-- `time_sec`: records at each Olympic game in seconds
-- `sb`: season best of the athlete; including national record and personal pest
-- `dnf`: did not finish; including did not start and disqualified
-- `dob`: date of birth
-- `age`: age (years) at the time of each Olympic game
-- `sex`: sex category
-- `olympic`: Olympic game name
-- `case_pp`: total case per population of the athlete country as of July 22, 2021 (Start date of Tokyo 2020)
-- `gdp2016:2020`: GDP from 2016 to 2020
-- `continent`: continent from which the athlete is
-- `lockdown`: yes if the country from which the athletes is implemented lockdown
-- `prior_attend`: Attendance before Tokyo (athletes at Rio 2016 are all "no")
+- `rank`: Ranks of marathon athletes at the 2016 and 2020 Olympic games
+- `athlete`: Names of the athletes who attended the 2016 and 2020 Olympic marathon games
+- `country`: Countries from which the athletes represent
+- `time`: Finishing time of the athletes at each Olympic games
+- `time_sec`: Finishing time of the athletes at each Olympic game in seconds
+- `sb`: Season-best records of the athletes, which includes the athletes' national record and personal best record
+- `dnf`: Athletes were defined as not able to finish the games if the athletes did not start or were disqualified
+- `dob`: Date of birth of each athlete included in the 2016 and 2020 marathon games
+- `age`: Age (years) at the time of each Olympic game
+- `sex`: Gender category
+- `olympic`: Olympics 2016 or 2020
+- `case_pp`: Total cases of COVID-19 per population in the athlete's country as of July 22, 2021
+- `gdp2016, 2017, 2018, 2019, 2020`: GDP of the countries from which athletes represent in years 2016, 2017, 2018, 2019, 2020
+- `continent`: Continents from which the athletes represent
+- `lockdown`: Whether the countries from which the athletes represent implemented lockdown policies
+- `prior_attend`: Prior attendance of Tokyo 2020 athletes at Rio 2016 games (athletes at Rio 2016 are all “no”)
+
+
 
 
 
