@@ -18,7 +18,7 @@ library(shinythemes)
 
 # Read in dataframe
 dat <- read_csv("data.csv")
-dat <- dat %>% mutate(rank = as.numeric(rank))
+
 shinyApp(ui = fluidPage( 
     # Change theme 
     theme = shinytheme("superhero"),
@@ -86,7 +86,7 @@ server = function(input, output){
         # Scatterplot for the difference in seconds vs. rank
         ggplot() +
         theme_economist() +
-        geom_line(aes(x = x_rank, y=y_diff, group=1, color = ifelse(input$sex == "Men", 'deepskyblue2','hotpink2')), size = 1) +
+        geom_line(aes(x = x_rank, y=y_diff), color = ifelse(input$sex == "Men", 'deepskyblue2','hotpink2'), size = 1) +
         xlab("rank") +
         ylab("Difference (seconds Rio - Tokyo)") +
         geom_hline(yintercept = 0, colour = 'black') 
