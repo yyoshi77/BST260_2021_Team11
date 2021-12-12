@@ -2,7 +2,6 @@
 title: "COVID-19 Pandemic and Olympics Marathon Performance - A Case Study Using Rio 2016 and Tokyo 2020 Data -"
 author: "BST260 Group 11: Mariko Ando, Yi-Ting Tsai, Satoko Ugai, Marie Wu, Yusuke Yoshikawa, Yuki Zhong"
 output: html_document
-runtime: shiny
 ---
 
 ## 0. Overview (BST260 Group 11 Members)
