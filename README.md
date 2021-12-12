@@ -8,7 +8,7 @@
 ## About the project
 The emergence of COVID-19 has impacted all over the world. The Olympics, Tokyo 2020, is not an exception. The objective of this project is to see differences in records for marathon games between pre- and post-pandemic periods, and also try to classify the athletes’ performance during the COVID-19 pandemic by using Tokyo 2020 data.
 
-## About this GitHub
+## About this GitHub Repository
 The members contributed to both the overview and their own sections. You can find separated files which include the work of the individual members and can work stand-alone. 
 
 ## Websites
